@@ -1,0 +1,2 @@
+Lab1/auth.tsv filter=lfs diff=lfs merge=lfs -text
+Lab1/publ.tsv filter=lfs diff=lfs merge=lfs -text
