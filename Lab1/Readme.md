@@ -25,6 +25,6 @@ git clone https://github.com/getintogit1/database-tuning.git
 cd database-tuning
 python TableCreations.py
 python TimeMeasurements.py
-```sh
+`sh
 These scripts will demonstrate the performance improvements made through our tuning approach.
 By applying these optimizations, we significantly reduce the overhead of repeated query parsing, improve execution speed, and optimize database interactions efficiently.
