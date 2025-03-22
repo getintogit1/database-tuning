@@ -43,9 +43,7 @@ print("Your data is loading this may take a while...")
     Runs as a single SQL statement with a size of: {tuplelimit}
     '''
 
-print("How many lines you want to load?")
-
-tupleLimit = 10000
+tupleLimit = 100000000
 
 def insert_auth_data(file_path, batch_size=1000):
     # Prepare the insert query
@@ -104,8 +102,10 @@ def insert_publ_data(file_path, batch_size=1000):
             if count >= tupleLimit:
                 break
             columns = line.strip().split('\t')
-            if len(columns) < 6:
-                continue  # Skip lines that do not have enough columns
+            if len(columns) < 5: # if a whole attribute is missing 
+                columns += [""] * (6 - len(columns))  # Fill missing columns            
+            while len(columns) < 6: #if publisher is unknown : replace "" with "unknown"
+                columns.append("Unknown")            
             pubID, type_, title, booktitle, year, publisher = columns
             # Accumulate rows in the batch
             batch.append((pubID, type_, title, booktitle, year, publisher))
