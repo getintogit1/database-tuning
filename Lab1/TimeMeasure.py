@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import time
 import subprocess
-import psycopg2
+import psycopg
 from Utils import dbname, password, user
 
 print(user)
 # Function to clear the tables 
 def clear_tables():
-    connection = psycopg2.connect(
+    connection = psycopg.connect(
         host="localhost", 
         dbname=dbname, 
         user=user, 

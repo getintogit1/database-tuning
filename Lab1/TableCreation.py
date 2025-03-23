@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
+import psycopg as psy
 from Utils import dbSetup, dbname, user, password
 
 connection = dbSetup(dbname, user, password)

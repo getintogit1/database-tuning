@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
+import psycopg as psy
 import json
 
 def credentials():
