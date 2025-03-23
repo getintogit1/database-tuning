@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
-from Utils import dbname, user, password 
+import psycopg as psy
+from Utils import use_sqlite3, dbSetup
 
 
-connection = psy.connect(
-        host="localhost", 
-        dbname=dbname, 
-        user=user, 
-        password=password, 
-        port=5432
-    )
+connection = dbSetup()
 cursor = connection.cursor()
 print("Your data is loading this may take a while...")
 # Tuned APPROACH 
@@ -46,13 +40,6 @@ print("Your data is loading this may take a while...")
 tupleLimit = 100000000
 
 def insert_auth_data(file_path, batch_size=1000):
-    # Prepare the insert query
-    cursor.execute("""
-        PREPARE insert_auth AS
-        INSERT INTO Auth (name, pubID)
-        VALUES ($1, $2);
-    """)
-    
     count = 0
     batch = []
     
@@ -76,23 +63,18 @@ def insert_auth_data(file_path, batch_size=1000):
 
 
 def execute_batch(batch):
-    # This function takes a batch of rows and inserts them all at once.
-    insert_query = "EXECUTE insert_auth "
-    # Create a list of placeholders for all rows in the batch
-    placeholders = ', '.join(['(%s, %s)'] * len(batch))
-    values = [item for sublist in batch for item in sublist]  # Flatten the batch list into a single list of values
-    # Execute the batch insert
-    cursor.execute(f"INSERT INTO Auth (name, pubID) VALUES {placeholders};", values)
+    if use_sqlite3:
+        cursor.executemany("INSERT INTO Auth (name, pubID) VALUES (?, ?);", batch)
+    else:
+        # Create a list of placeholders for all rows in the batch
+        placeholders = ', '.join(['(%s, %s)'] * len(batch))
+        # Flatten the batch list into a single list of values
+        values = [item for sublist in batch for item in sublist]  # Flatten the batch list into a single list of values
+        # Execute the batch insert
+        cursor.execute(f"INSERT INTO Auth (name, pubID) VALUES {placeholders};", values)
 
 
 def insert_publ_data(file_path, batch_size=1000):
-    # Step 1: Prepare the SQL statement
-    cursor.execute("""
-        PREPARE insert_publ AS
-        INSERT INTO Publ (pubID, type, title, booktitle, year, publisher)
-        VALUES ($1, $2, $3, $4, $5, $6);
-    """)
-
     count = 0
     batch = []
     
@@ -120,14 +102,15 @@ def insert_publ_data(file_path, batch_size=1000):
 
 
 def execute_batch_publ(batch):
-    # This function takes a batch of rows and inserts them all at once.
-    insert_query = "EXECUTE insert_publ "
-    # Create a list of placeholders for all rows in the batch
-    placeholders = ', '.join(['(%s, %s, %s, %s, %s, %s)'] * len(batch))
-    # Flatten the batch list into a single list of values
-    values = [item for sublist in batch for item in sublist]
-    # Execute the batch insert
-    cursor.execute(f"INSERT INTO Publ (pubID, type, title, booktitle, year, publisher) VALUES {placeholders};", values)
+    if use_sqlite3:
+        cursor.executemany("INSERT INTO Publ (pubID, type, title, booktitle, year, publisher) VALUES (?, ?, ?, ?, ?, ?);", batch)
+    else:
+        # Create a list of placeholders for all rows in the batch
+        placeholders = ', '.join(['(%s, %s, %s, %s, %s, %s)'] * len(batch))
+        # Flatten the batch list into a single list of values
+        values = [item for sublist in batch for item in sublist]
+        # Execute the batch insert
+        cursor.execute(f"INSERT INTO Publ (pubID, type, title, booktitle, year, publisher) VALUES {placeholders};", values, prepare = True)
 
 filepath1 = 'auth.tsv'
 filepath2 = 'publ.tsv'

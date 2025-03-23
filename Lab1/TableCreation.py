@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
-from Utils import dbSetup, dbname, user, password
+import psycopg as psy
+import sqlite3
+import sys
+import Utils
 
-connection = dbSetup(dbname, user, password)
 def createTables(connection):
     cursor = connection.cursor() 
     cursor.execute("""
     CREATE TABLE Auth (
         name VARCHAR(49),
         pubID VARCHAR(129)
-        );
+        );""")
 
+    cursor.execute("""
     CREATE TABLE Publ (
         pubID VARCHAR(129),
         type VARCHAR(13),
@@ -26,4 +28,11 @@ def createTables(connection):
 
     print("Created Table Auth and Publ complete.")
 
-createTables(connection)
+def main():
+    connection = Utils.dbSetup()
+    createTables(connection)
+
+Utils.use_sqlite3 = False
+main()
+Utils.use_sqlite3 = True
+main()

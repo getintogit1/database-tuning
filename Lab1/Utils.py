@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
+import sys
+import psycopg as psy
+import sqlite3
 import json
 
 def credentials():
@@ -22,26 +24,25 @@ def credentials():
 
         return dbname, user, password
 
-
-def dbSetup(dbname, user, password):
-    
-    
-    connection = psy.connect(
-    host="localhost", 
-    dbname=dbname, 
-    user=user, 
-    password=password, 
-    port= 5432)
-   
-    print(f"""You created a connection with following informations:
-    host="localhost", 
-    dbname={dbname}, 
-    user={user}, 
-    password={password}, 
-    port= 5432""")
-    return connection
-
+use_sqlite3 = len(sys.argv) > 1 and sys.argv[1] == '--sqlite'
 dbname, user, password = credentials()
 
-
-    
+def dbSetup():
+    if use_sqlite3:
+        connection = sqlite3.connect("db.sqlite")
+        print("You created a SQLite connection at db.sqlite")
+    else:
+        connection = psy.connect(
+        host="localhost", 
+        dbname=dbname, 
+        user=user, 
+        password=password, 
+        port= 5432)
+       
+        print(f"""You created a PostgreSQL connection with following informations:
+        host="localhost", 
+        dbname={dbname}, 
+        user={user}, 
+        password={password}, 
+        port= 5432""")
+    return connection

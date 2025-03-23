@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-import psycopg2 as psy
-from Utils import dbname, user, password
+import psycopg as psy
+from Utils import dbSetup, use_sqlite3
 
 
-connection = psy.connect(
-        host="localhost", 
-        dbname=dbname, 
-        user=user, 
-        password=password, 
-        port=5432
-    )
+connection = dbSetup()
 cursor = connection.cursor()
 print("Your data is loading this may take a while...")
 # NAIVE APPROACH 
@@ -28,7 +22,11 @@ def insert_auth_data(file_path):
             columns = line.strip().split('\t')  # Split by tab
             name = columns[0]
             pubID = columns[1]
-            insert_query = "INSERT INTO Auth (name, pubID) VALUES (%s, %s);"
+            insert_query = "INSERT INTO Auth (name, pubID) VALUES "
+            if use_sqlite3:
+                insert_query += "(?, ?);"
+            else:
+                insert_query += "(%s, %s);"
             cursor.execute(insert_query, (name, pubID))
             count +=1
             connection.commit()
@@ -53,8 +51,11 @@ def insert_publ_data(file_path):
             pubID, type_, title, booktitle, year, publisher = columns
             insert_query = """
             INSERT INTO Publ (pubID, type, title, booktitle, year, publisher)
-            VALUES (%s, %s, %s, %s, %s, %s);
             """
+            if use_sqlite3:
+                insert_query += "VALUES (?, ?, ?, ?, ?, ?);"
+            else:
+                insert_query += "VALUES (%s, %s, %s, %s, %s, %s);"
             cursor.execute(insert_query, (pubID, type_, title, booktitle, year, publisher))
             count += 1
             connection.commit() # Naive approach comitted after every line
