@@ -37,20 +37,21 @@ def measure_execution_time(script_name):
         return None
     end_time = time.time() 
     
-    return end_time - start_time  # Return the time difference )
+    return end_time - start_time                                                # Return the time difference )
 
 def main():
     clear_tables()
-
     print("Running Naive.py")
     naive_time = measure_execution_time('Naive.py')
     print(f"Naive.py execution time: {naive_time:.4f} seconds")
-
     clear_tables()
-
     print("Running Tuned.py")
     tuned_time = measure_execution_time('Tuned.py')
     print(f"Tuned.py execution time: {tuned_time:.4f} seconds")
+    clear_tables()
+    print("Running Tuned2.py")
+    tuned_time = measure_execution_time('Tuned2.py')
+    print(f"Tuned2.py execution time: {tuned_time:.4f} seconds")
 
 if __name__ == "__main__":
     main()
