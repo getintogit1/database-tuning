@@ -28,8 +28,8 @@
 
 \author{
   A4 \\
-  \large Günter Lukas, StudentID1 \\
-  \large Balint Peter, 12213073 \\
+  \large Günter Lukas, 12125639 \\
+  \large Balint Peter, 12213073  \\
   \large Ottino David, 51841010
 }
 
@@ -57,7 +57,7 @@ In this approach, it took about 10 seconds to insert 20.000 lines.
 
 \subsection*{Efficient Approaches}
 
-\subsubsection*{Efficient Approach 1: (Batch Input)}
+\subsubsection*{Efficient Approach 1: (Batch Insert)}
 
 \paragraph{Implementation}
 
@@ -73,11 +73,7 @@ After all batches are executed for both tables, all changes are commited at once
 
 \paragraph{Why is this approach efficient?}
 
-This approach uses far fewer total statements as the naive approach. This greatly reduces the SQL-overhead of parsing and optimizing each statement separately. It also leads to a more efficient use of transactions since tables are locked less often for the write operation and the data is written in one go to the storage. This also means that fewer network roundtrips are required and therefore network overhead is also reduced. 
-
-\emph{Important:} Cite the references that you used to answer this question, for example, using footnotes or the References section at the end of the report.
-
-\youranswerhere{}
+This approach uses far fewer total statements as the naive approach. This greatly reduces the SQL-overhead of parsing and optimizing each statement separately. It also leads to a more efficient use of transactions since tables are locked less often for the write operation and the data is written in one go to the storage. This also means that fewer network roundtrips are required and therefore network overhead is reduced. 
 
 \paragraph{Tuning principle}
 
@@ -87,7 +83,7 @@ The tuning principle that describes this approach best is "Startup costs are hig
 
 \paragraph{Implementation}
 
-In the second optimized approach a feature of PostgreSQL is used to transfer the data more efficiently. The copy-function, while being less flexible than an Insert-statement, is specifically designed to load rows from a given file into a database table by instructing the database server to read the specified file directly. Also, in this approach WAL-logging is disabled and working memory is increased.
+In the second optimized approach a feature of PostgreSQL is used to transfer the data more efficiently. The copy-function, while being less flexible than an Insert-statement, is specifically designed to load rows from a given file into a database table by instructing the database server to read the specified file directly. Also, in this approach WAL-logging is disabled and working memory is increased to further boost performance.
 
 \paragraph{Why is this approach efficient?}
 
@@ -101,7 +97,7 @@ The applied tuning principle is again "Startup costs are high, running costs are
 
 \paragraph{Implementation}
 
-We decided to use SQLite as our second database system. In order for this to work different code has to be executed in all parts of the program that interact with the database. To differentiate between the two a parameter was implemented that triggers if sqlite is used or not and based on this parameter different code segments are executed. Establishing a connection to the database requires authentication in the case of PostgreSQL while SQLite allows a direct connection. Also the wildcards differentiate between the two:
+We decided to use SQLite as our second database system. In order for this to work different code has to be executed in all parts of the program that interact with the database. To differentiate between the two a parameter was implemented that triggers if SQLite is used or not and based on this parameter different code segments are executed. Establishing a connection to the database requires authentication in the case of PostgreSQL while SQLite allows a direct connection. Also the wildcards differentiate between the two:
 
 \begin{lstlisting}[style=dbtsql]
 INSERT INTO Auth (name, pubID) VALUES (%s, %s);	--Postgres
@@ -112,7 +108,7 @@ In the case of batch inputs SQLite also differs from Postgres by providing an ex
 
 \paragraph{Did you observe performance differences. If so: Why. If not: Why not?}
 
-Interestingly, SQLite performed the batch input much faster than Postgres. We assume this is because SQLite has much less overhead in general and is therefore able to perform those transactions faster. Also, since SQLite is a local database while Postgres uses a client-server-model which introduces additional overhead even if the client and the server run on the same machine.
+Interestingly, SQLite performed the batch input much faster than Postgres. We assume this is because SQLite has much less overhead in general and is therefore able to perform those transactions faster. Also, since SQLite is a local database while Postgres uses a client-server-model which introduces additional overhead even if the client and the server run on the same machine. Despite this, the naive approach was slower than Postgres. According to the SQLite-documentation, transaction speed is limited by the rotational speed of the disk drive, since SQLite waits till the data is physically stored on the drive until the next transaction is started. Therefore SQLite falls short when a lot of single transactions have to be handled. Probably Postgres does some optimization which leads to faster throughput with single transactions.
 
 \subsection*{Runtime Experiment}
 
@@ -125,21 +121,20 @@ Interestingly, SQLite performed the batch input much faster than Postgres. We as
 
 \begin{table}[H]
   \centering
-  \begin{tabular}{l|r}
-    Approach          & Runtime [sec] \tabularnewline
+  \begin{tabular}{l|c|r}
+    Approach & Database & Runtime [sec] \tabularnewline
     \hline
-    Straightforward   & 10.8350 sec. \tabularnewline
-    Approach Batch Input & 51.2956 sec \tabularnewline
-    Apporach Copy & 9.2371 sec \tabularnewline
-    Local Approach & \ldots \tabularnewline
+    Straightforward with 20k tuples & PostgreSQL  & 10.8350 sec \tabularnewline
+    Straightforward with 20k tuples & SQLite  & 114.6605 sec \tabularnewline
+    Batch Insert with whole input & PostgreSQL & 51.2956 sec \tabularnewline
+    Batch Insert with whole input & SQLite & 8.7774 sec \tabularnewline
+    Copy function with whole input & PostgreSQL & 9.2371 sec \tabularnewline
   \end{tabular}
 \end{table}
 
 \subsection*{Time Spent on this Assignment}
 
-Balint Peter: \textbf{4h}
-Günter Lukas:  \textbf{XXX}
-Ottino David: \textbf{3h}
+ \textbf{~4h / student}
 
 \subsection*{References}
 
@@ -149,6 +144,8 @@ Ottino David: \textbf{3h}
     \hline
     https://www.postgresql.org/docs/current/populate.html \tabularnewline
     https://www.postgresql.org/docs/current/sql-copy.html \tabularnewline
+    https://www.sqlite.org/faq.html \tabularnewline
+    https://www.timescale.com/learn/testing-postgres-ingest-insert-vs-batch-insert-vs-copy \tabularnewline
     \hline
   \end{tabular}
 \end{table}
