@@ -43,5 +43,14 @@ def dbSetup(dbname, user, password):
 
 dbname, user, password = credentials()
 
+def printQueryResults(cursor, result_limit):
+        counter = 0
+        results = cursor.fetchall()
+        print("ssnum of Employees in Techdept:")
+        for row in results:
+            if counter >= result_limit:
+                break
+            print(row)
+            counter += 1
 
     
