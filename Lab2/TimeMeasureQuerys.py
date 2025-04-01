@@ -2,13 +2,17 @@
 import time
 import subprocess
 import psycopg2
+import Utils
 from Utils import dbname, password, user
 
 # Here we are actually Measuring everything 
 def measure_execution_time(script_name):
     start_time = time.time()  
     try:        
-        subprocess.run(['py', script_name], check=True)  
+        args = ['py', script_name]
+        if Utils.use_sqlite3:
+            args += ['--sqlite']
+        subprocess.run(args, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error running script {script_name}: {e}")
         return None
@@ -38,4 +42,7 @@ def main():
     print(f"Tuned.py execution time: {tuned_time:.4f} seconds")
     
 if __name__ == "__main__":
+    Utils.use_sqlite3 = False
+    main()
+    Utils.use_sqlite3 = True
     main()
