@@ -32,10 +32,10 @@ def main():
     tunedQueryFile = "TunedQuery2.py"
     print(f"Running: {naiveQueryFile}")
     naive_time = measure_execution_time(naiveQueryFile)
-    print(f"Naive.py execution time: {naive_time:.4f} seconds")
+    print(f"Naive2.py execution time: {naive_time:.4f} seconds")
     print(f"Running: {tunedQueryFile}")
     tuned_time = measure_execution_time(tunedQueryFile)
-    print(f"Tuned.py execution time: {tuned_time:.4f} seconds")
+    print(f"Tuned2.py execution time: {tuned_time:.4f} seconds")
     
 if __name__ == "__main__":
     main()
