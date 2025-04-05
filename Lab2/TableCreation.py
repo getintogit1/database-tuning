@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 import psycopg2 as psy
+import Utils
 from Utils import dbSetup, dbname, user, password
 
-connection = dbSetup(dbname, user, password)
-def createTables(connection):
+def createTables():
+    connection = dbSetup(dbname, user, password)
     try:
         cursor = connection.cursor() 
-        cursor.execute("""
+        query = """
         CREATE TABLE Employee (
             ssnum SERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
             manager INTEGER,
             dept TEXT,
             salary NUMERIC(10,2),
-            numfriends INTEGER
+            numfriends INTEGER,
+            FOREIGN KEY (manager) REFERENCES Employee(ssnum) ON DELETE SET NULL
         );
         CREATE UNIQUE INDEX idx_employee_ssnum ON Employee(ssnum);
         CREATE UNIQUE INDEX idx_employee_name ON Employee(name);
@@ -31,17 +33,15 @@ def createTables(connection):
         CREATE TABLE Techdept (
             dept TEXT PRIMARY KEY,
             manager INTEGER,
-            location TEXT
+            location TEXT,
+            FOREIGN KEY (manager) REFERENCES Employee(ssnum) ON DELETE SET NULL
         );
         CREATE UNIQUE INDEX idx_techdept_dept ON Techdept(dept);
-
-        -- Foreign key constraints
-        ALTER TABLE Employee ADD CONSTRAINT fk_employee_manager 
-            FOREIGN KEY (manager) REFERENCES Employee(ssnum) ON DELETE SET NULL;
-        
-        ALTER TABLE Techdept ADD CONSTRAINT fk_techdept_manager 
-            FOREIGN KEY (manager) REFERENCES Employee(ssnum) ON DELETE SET NULL;
-        """)
+        """
+        if Utils.use_sqlite3:
+            cursor.executescript(query)
+        else:
+            cursor.execute(query)
         
         connection.commit()
         print("Tables Employee, Student, and Techdept created successfully.")
@@ -53,4 +53,7 @@ def createTables(connection):
         cursor.close()
         connection.close()
 
-createTables(connection)
+Utils.use_sqlite3 = False
+createTables()
+Utils.use_sqlite3 = True
+createTables()
