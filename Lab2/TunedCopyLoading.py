@@ -12,6 +12,18 @@ from Utils import dbname, user, password, dbSetup
     INSERT executes multiple smaller disk writes, making it slower.
     Indexing impact (If the table has many indexes, inserting in batches may be beneficial).'''
 
+def clear_tables(cursor, connection):
+    try:
+        cursor.execute("DELETE FROM employee;")
+        cursor.execute("DELETE FROM student;")
+        cursor.execute("DELETE FROM techdept;")
+        connection.commit()
+        print("Tables cleared successfully.")
+    except Exception as e:
+        print(f"Error clearing tables: {e}")
+        connection.rollback()
+
+
 tuplelimit = 1000
 def optimize_db(cursor):
     print("Increasing work memory temporarily...")
@@ -82,6 +94,7 @@ def main():
     employeeData = "employees.csv"
     studentData = "students.csv"
     techDeptData = "techdepartments.csv"
+    clear_tables(cursor, connection)
     copy_employee_data(employeeData, cursor)
     copy_student_data(studentData, cursor)
     copy_techDept_data(techDeptData, cursor)
