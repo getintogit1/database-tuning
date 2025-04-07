@@ -82,17 +82,15 @@ CREATE TABLE Techdept (
 CREATE UNIQUE INDEX idx_techdept_dept ON Techdept(dept);
 \end{lstlisting}
 
-In PostgreSQL wird automatisch ein Index erzeugt, sobald eine Spalte mit einem
-UNIQUE constraint belegt wird. Daher wären die Indizes für ssnum und name nicht nötig,
-der Vollständigkeit halber werden sie hier trotzdem angegeben.
+PostgreSQL automatically creates an index as soon as you put a UNIQUE contraint on a column. Therefore the indizes on ssnum and name would theoretically not be necessary, but we included them anyway for completness sake.
 
 
 \subsection*{Populating the Tables}
 
-Die Tabellen werden über ein Python Script gefüllt. Wir haben CSV-Dateien als Zieldateien verwendet, um die Tabelleninhalte zu speichern. Die zugrunde liegenden Daten (Mitarbeitende, Studierende, Abteilungen) wurden zufällig generiert, wobei bestimmte Zusammenhänge und Bedingungen berücksichtigt wurden - z.B. Überschneidungen bei Personen, Manager-Zuweisungen und Abteilungsmitgliedschaften.
+The tables are filled using a Python script. We used CSV files as target files to store the table contents. The underlying data (employees, students, departments) was randomly generated, taking into account certain correlations and conditions - e.g. overlaps in people, manager assignments and department memberships.
 
 \subsubsection*{TechDept}
-Für jedes technische Department habenb wir einen zufällig generierten Manager aus der bestehenden Mitarbeitermenge ausgewählt. 
+For each technical department, we selected a randomly generated manager from the existing set of employees.
 
 \begin{figure}[htbp]
     \centering
@@ -110,44 +108,44 @@ Für jedes technische Department habenb wir einen zufällig generierten Manager 
 
 \subsubsection*{Students}
 
-Für die Studententabelle wurden 100.000 Einträge erzeugt. Jede Person erhielt:
+100,000 entries were generated for the student table. Each person received:
 
 \begin{itemize}
-    \item eine eindeutige Sozialversicherungsnummer
-    \item einen eindeutigen Namen
-    \item einen zufälligen Kurs und zufällige Note
+    \item a unique social security number
+    \item a unique name
+    \item a random course and grade
 \end{itemize}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{Pics/StudentsScript.jpg}
-    \caption{Script für Erstellung von Students}
+    \caption{Script for creation of students}
     \label{fig:ScriptStudents}
 \end{figure}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{Pics/StudentsResult.jpg}
-    \caption{Auszug aus Students}
+    \caption{Excerpt from Students}
     \label{fig:StudentsResult}
 \end{figure}
 
 \subsubsection*{Employee}
 
-Für die Mitarbeitertabelle wurden 100.000 Einträge erzeugt. Jede Person erhielt:
+100,000 entries were generated for the employee table. Each person received:
 
 \begin{itemize}
-    \item eine eindeutige Sozialversicherungsnummer
-    \item einen eindeutigen Namen
-    \item eine zufällige Manager-Zuweisung
-    \item mit 10-prozentiger Wahrscheinlichkeit: Zugehörigkeit zu einer technischen Abteilung
-    \item zufälliges Gehalt und Anzahl an "Freunden".
+    \item a unique social security number
+    \item a unique name
+    \item a random manager assignment
+    \item with a 10 percent chance: an assignment to a technical departement
+    \item random salary and amount of friends
 \end{itemize}
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.8\textwidth]{Pics/ScriptEmployee.jpg}
-    \caption{Script für Erstellung von Employees}
+    \caption{Script for creation of employees}
     \label{fig:ScriptEmployee}
 \end{figure}
 
@@ -226,9 +224,9 @@ Nested Loop Inner Join
 	Seq Scan on techdept as t
 \end{verbatim}}
 
-Nested Loop Inner Join: Die Tupel in Employee werden sequentiell gelesen. Dabei wird auf die Ergebnisse der beiden Sub-Queries SubPlan1 und SubPlan2 eingeschränkt. Anschließend wird das Ergebnis mit TechDept verglichen und gejoined
+Nested Loop Inner Join: The tuples in Employee are read sequentially. This is restricted to the results of the two sub-queries SubPlan1 and SubPlan2. The result is then compared with TechDept and joined
 
-SubPlan1/2: Der Index in TechDept auf techdept wird verwendet, um alle Tech-Departements zu finden, die dem TechDept in Employee entsprechen. Für den Vergleich wird der Index auf techdept in Employee verwendet. Dieser Prozess wird 2x durchgeführt, da der durchschnittliche Verdienst 2x gebraucht wird.
+SubPlan1/2: The index in TechDept on techdept is used to find all tech departments that correspond to the TechDept in Employee. The index on techdept in Employee is used for the comparison. This process is carried out twice, as the average earnings are used twice.
 
 {\small
 \parskip0pt\begin{verbatim}
@@ -247,15 +245,15 @@ Nested Loop Inner Join
 		Index Cond: (dept = e.dept)
 \end{verbatim}}
 
-Aggregate: Berechnet einen Wert auf Basis aller Datensätze, hier AVG(salary), auf Basis eines Hash Joins.
+Aggregate: Calculates a value based on all data records, in this case AVG(salary), based on a hash join.
 
-Hash Inner Join: Employee wird mit TechDept gejoined. Dies Erfolgt mit einen hash join, die Werte in beiden Tabellen werden also gelesen, dann wird ein Hash-Table auf Basis von TechDept erstellt ung mit Employee verglichen.
+Hash Inner Join: Employee is joined with TechDept. This is done with a hash join, so the values in both tables are read, then a hash table is created based on TechDept and compared with Employee.
 
-Nested Loop Inner Join: Die Werte in Employee werden sequentiell gelesen und nur Werte mit dem entsprechenden salary ausgewählt. Diese Werte werden mit TechDept verglichen, dabei wird auch der Index auf TechDept verwendet und gespeichert, damit der Index für das gleiche Department nicht mehrmals durchlaufen werden muss.
+Nested loop inner join: The values in Employee are read sequentially and only values with the corresponding salary are selected. These values are compared with TechDept, and the index on TechDept is also used and saved so that the index does not have to be run through several times for the same department.
 
 Discuss, how the execution plan changed between the original and the rewritten query. In both the interpretation of the query plans and the discussion focus on the crucial parts, i.e., the parts of the query plans that cause major runtime differences.
 
-In der naiven Query werden für jedes Tupel in Employee zwei Joins mit jeweils einem Aggregate ausgeführt, während nach der Optimierung der durchschnittliche Wert 1x berechnet und dann wiederverwendet wird.
+In the naive query, two joins with one aggregate each are executed for each tuple in Employee, while after optimization the average value is calculated once and then reused.
 
 \paragraph{Experiment}
 
@@ -269,7 +267,7 @@ In der naiven Query werden für jedes Tupel in Employee zwei Joins mit jeweils e
   \end{tabular}
 \end{table}
 
-Die verbesserte Query ist wesentlich schneller, da in der originalen Anfrage für jedes Tupel in Employee zwei Joins und dazu jeweils ein Aggregate berechnet werden müssen, was sehr zeit- und rechenaufwändige Operationen sind. Die verbesserte Query berechnet den Wert für die Einschränkung in Employee 1x und verwendet diesen dann immer wieder weiter.
+The improved query is significantly faster, as in the original query two joins and an aggregate have to be calculated for each tuple in Employee, which are very time-consuming and computationally intensive operations. The improved query calculates the value for the restriction in Employee once and then uses it again and again.
 
 \subsubsection*{Query 2}
 
@@ -361,7 +359,7 @@ Give the runtimes of the original and the rewritten query.
 
 Discuss, why the rewritten query is (or is not) faster than the original query.
 
-In der naiven Anfrage wird für jedes Tupel in Employee eine Anfrage in TechDept ausgeführt. Die optimierte Query verwendet die vorhandenen Indizes effizient und führt die Ergebnisse bereits vorab zusammen und filtert sie.
+In the naive query, a query is executed in TechDept for each tuple in Employee. The optimized query uses the existing indices efficiently and merges and filters the results in advance.
 
 \paragraph{Differences between PostgreSQL and SQLite}
 
@@ -383,7 +381,7 @@ SQLite uses a different execution model than PostgreSQL.  Instead of storing the
 
 For query 1, significant runtime differences could be observed between the naive versions: SQLite managed to complete it in a tenth of the time when compared to PostgreSQL. However, further investigation revealed that this was only the initial execution time for the first row; retrieving all rows is in fact many times slower than in PostgreSQL.
 
-To provide detailed query plans, we complied SQLite using the SQLITE_ENABLE_STMT_SCANSTATUS option.  The plan for the naive query:
+To provide detailed query plans, we complied SQLite using the SQLITE.ENABLE.STMT.SCANSTATUS option.  The plan for the naive query:
 
 {\small
 \parskip0pt\begin{verbatim}
@@ -455,7 +453,7 @@ Time in hours per person: \textbf{4}
     \hline
     https://www.postgresql.org/docs/current/planner-optimizer.html \tabularnewline
     https://sqlite.org/draft/whybytecode.html \tabularnewline
-    https://www.sqlite.org/optoverview.html#joins \tabularnewline
+    https://www.sqlite.org/optoverview.html.joins \tabularnewline
     \hline
   \end{tabular}
 \end{table}
