@@ -363,6 +363,86 @@ Discuss, why the rewritten query is (or is not) faster than the original query.
 
 In der naiven Anfrage wird für jedes Tupel in Employee eine Anfrage in TechDept ausgeführt. Die optimierte Query verwendet die vorhandenen Indizes effizient und führt die Ergebnisse bereits vorab zusammen und filtert sie.
 
+\paragraph{Differences between PostgreSQL and SQLite}
+
+What differences did you observe between the postgres dbms and your alternative dbms?
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{l|r|r|r}
+    Query & Runtime PostgreSQL & Runtime SQLite (initial) & Runtime SQLite (full) \tabularnewline
+    \hline
+    Naive 1 & 9.045 seconds & 0.897 seconds & 76.247 seconds \tabularnewline
+    Tuned 1 & 0.081 seconds & 0.077 seconds & 0.146 seconds \tabularnewline
+    Naive 2 & 0.071 seconds & 0.054 seconds & 0.104 seconds \tabularnewline
+    Tuned 2 & 0.075 seconds & 0.076 seconds & 0.074 seconds \tabularnewline
+  \end{tabular}
+\end{table}
+
+SQLite uses a different execution model than PostgreSQL.  Instead of storing the execution plan as a tree, it generates a sequential bytecode representation which is directly executed.  The execution plan is a high-level description of this bytecode.
+
+For query 1, significant runtime differences could be observed between the naive versions: SQLite managed to complete it in a tenth of the time when compared to PostgreSQL. However, further investigation revealed that this was only the initial execution time for the first row; retrieving all rows is in fact many times slower than in PostgreSQL.
+
+To provide detailed query plans, we complied SQLite using the SQLITE_ENABLE_STMT_SCANSTATUS option.  The plan for the naive query:
+
+{\small
+\parskip0pt\begin{verbatim}
+QUERY PLAN (cycles=2427167766 [100%])
+|--CORRELATED SCALAR SUBQUERY 1                                    (cycles=1682897569 [69%] loops=1159)
+|  |--SEARCH T USING COVERING INDEX idx_techdept_dept (dept=?)     (cycles=1006677 [0%] loops=1159 rows=99 rpl=0.1 est=1.0)
+|  `--SEARCH E2 USING INDEX idx_employee_dept (dept=?)             (cycles=1663633623 [69%] loops=99 rows=99192 rpl=1001.9 est=9.0)
+|--CORRELATED SCALAR SUBQUERY 2                                    (cycles=739479704 [30%] loops=46)
+|  |--SEARCH T USING COVERING INDEX idx_techdept_dept (dept=?)     (cycles=254716 [0%] loops=46 rows=46 rpl=1.0 est=1.0)
+|  `--SEARCH E2 USING INDEX idx_employee_dept (dept=?)             (cycles=731309980 [30%] loops=46 rows=46482 rpl=1010.5 est=9.0)
+|--SCAN E1 USING INDEX idx_employee_ssnum                          (cycles=9360875 [0%] loops=1 rows=1159 rpl=1159.0 est=983040.0)
+`--SCAN T USING COVERING INDEX idx_techdept_dept                   (cycles=2448 [0%] loops=1 rows=1 rpl=1.0 est=1048576.0)
+\end{verbatim}}
+
+The plan itself largely resembles that of PostgreSQL.  A majority of the time is spent in looking up employees in an index for the dept column of employee.
+
+The runtime difference is explained by the fact that we only retrieved the first row from the result, and SQLite's bytecode design allows for efficient evaluation of partial results.  Attempting to retrieve all rows inflates the execution time to 82 seconds, almost ten times \textit{slower} than PostgreSQL.
+
+The tuned query reduces to two sequential scans over E, with a nested loop to find the corresponding tech department (if any):
+
+{\small
+\parskip0pt\begin{verbatim}
+QUERY PLAN (cycles=105487554 [100%])
+|--SCAN E                                                       (cycles=55791135 [53%] loops=1 rows=100000 rpl=100000.0 est=1048576.0)
+`--SEARCH T USING COVERING INDEX idx_techdept_dept (dept=?)     (cycles=38080482 [36%] loops=100000 rows=10037 rpl=0.1 est=1.0)
+
+QUERY PLAN (cycles=138855928 [100%])
+|--SCAN E                                                       (cycles=76062419 [55%] loops=1 rows=100000 rpl=100000.0 est=983040.0)
+`--SEARCH T USING COVERING INDEX idx_techdept_dept (dept=?)     (cycles=31517151 [23%] loops=100000 rows=10037 rpl=0.1 est=1.0)
+\end{verbatim}}
+
+For query 2, the runtime difference is less significant.  However, it yields another interesting result: the tuned version is \textit{slower} than the naive version.
+
+Naive plan:
+
+{\small
+\parskip0pt\begin{verbatim}
+QUERY PLAN (cycles=243576876 [100%])
+|--USING INDEX idx_techdept_dept FOR IN-OPERATOR
+`--SEARCH employee USING INDEX idx_employee_dept (dept=?)     (cycles=241322241 [99%] loops=1 rows=10037 rpl=10037.0 est=240.0)
+\end{verbatim}}
+
+Here, SQLite traverses an index on the techdept table's dept field, and searches for employees with according departments using an index on employee.
+
+In contrast, the tuned plan looks like:
+
+{\small
+\parskip0pt\begin{verbatim}
+QUERY PLAN
+|--SCAN employee                                                       (loops=0 rows=0 rpl=NaN est=1048576.0)
+`--SEARCH techdept USING COVERING INDEX idx_techdept_dept (dept=?)     (loops=0 rows=0 rpl=NaN est=1.0)
+\end{verbatim}}
+
+SQLite has decided to flip the looping order, doing a scan on the employee table and looking up the corresponding tech department for each employee.  It is interesting to contrast this with PostgreSQL's approach, which goes with a sort-merge join.  The reason for this discrepancy is that SQLite implements all joins as nested loops; it has no merge join strategy.
+
+This time, we loaded the first 100 results, which the first query completes faster than the second query.  However, when loading \textit{all} results, the tuned query runs faster. (105ms vs 75ms).
+
+A conclusion we can draw from this is that in SQLite, there may be a significant difference between the latency until the first row is returned and all rows are returned.
+
 \subsection*{Time Spent on this Assignment}
 
 Time in hours per person: \textbf{4}
@@ -371,10 +451,11 @@ Time in hours per person: \textbf{4}
 
 \begin{table}[H]
   \centering
-  \begin{tabular}{c}
+  \begin{tabular}{l}
     \hline
-    \textbf{Important:} Reference your information sources! \tabularnewline
-    Remove this section if you use footnotes to reference your information sources. \tabularnewline
+    https://www.postgresql.org/docs/current/planner-optimizer.html \tabularnewline
+    https://sqlite.org/draft/whybytecode.html \tabularnewline
+    https://www.sqlite.org/optoverview.html#joins \tabularnewline
     \hline
   \end{tabular}
 \end{table}
