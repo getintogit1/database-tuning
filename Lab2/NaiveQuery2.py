@@ -7,10 +7,9 @@ def make_naive_query2(connection):
     try:
         cursor = connection.cursor() 
         query = """
-        SELECT AVG(salary) as avgsalary, dept
+        SELECT ssnum
         FROM Employee
-        GROUP BY dept
-        HAVING dept = 'TechDept5'        """
+        WHERE dept IN (SELECT dept FROM Techdept)        """
         cursor.execute(query)
         #printQueryResults(cursor, result_limit = 100)
     except Exception: 

@@ -9,10 +9,9 @@ def make_tuned_query(connection):
     try:
         cursor = connection.cursor() 
         query = """
-        SELECT AVG(salary) as avgsalary, dept
-        FROM Employee
-        WHERE dept = 'TechDept5'
-        GROUP BY dept
+        SELECT ssnum
+        FROM Employee, Techdept
+        WHERE Employee.dept = Techdept.dept
         """
         cursor.execute(query)
         printQueryResults(cursor, result_limit = 100)

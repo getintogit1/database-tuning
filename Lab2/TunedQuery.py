@@ -17,7 +17,7 @@ def make_tuned_query(connection):
         avg_salary = cursor.fetchone()[0]
 
         query = """
-        SELECT DISTINCT E.ssnum
+        SELECT E.ssnum
         FROM Employee E
         JOIN Techdept T ON E.dept = T.dept
         WHERE E.salary BETWEEN %s AND %s
@@ -27,7 +27,7 @@ def make_tuned_query(connection):
 
         cursor.execute(query, (lower_bound, upper_bound))
 
-        printQueryResults(cursor, result_limit = 100)
+        #printQueryResults(cursor, result_limit = 100)
     except Exception: 
         raise 
     finally:
