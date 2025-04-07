@@ -368,12 +368,12 @@ What differences did you observe between the postgres dbms and your alternative 
 \begin{table}[H]
   \centering
   \begin{tabular}{l|r|r|r}
-    Query & Runtime PostgreSQL & Runtime SQLite (initial) & Runtime SQLite (full) \tabularnewline
+    Query & Runtime SQLite (initial) & Runtime SQLite (full) \tabularnewline
     \hline
-    Naive 1 & 9.045 seconds & 0.897 seconds & 76.247 seconds \tabularnewline
-    Tuned 1 & 0.081 seconds & 0.077 seconds & 0.146 seconds \tabularnewline
-    Naive 2 & 0.071 seconds & 0.054 seconds & 0.104 seconds \tabularnewline
-    Tuned 2 & 0.075 seconds & 0.076 seconds & 0.074 seconds \tabularnewline
+    Naive 1 & 0.897 seconds & 76.247 seconds \tabularnewline
+    Tuned 1 & 0.077 seconds & 0.146 seconds \tabularnewline
+    Naive 2 & 0.054 seconds & 0.104 seconds \tabularnewline
+    Tuned 2 & 0.076 seconds & 0.074 seconds \tabularnewline
   \end{tabular}
 \end{table}
 
@@ -381,7 +381,7 @@ SQLite uses a different execution model than PostgreSQL.  Instead of storing the
 
 For query 1, significant runtime differences could be observed between the naive versions: SQLite managed to complete it in a tenth of the time when compared to PostgreSQL. However, further investigation revealed that this was only the initial execution time for the first row; retrieving all rows is in fact many times slower than in PostgreSQL.
 
-To provide detailed query plans, we complied SQLite using the SQLITE.ENABLE.STMT.SCANSTATUS option.  The plan for the naive query:
+To provide detailed query plans, we complied SQLite using the SQLITE_ENABLE_STMT_SCANSTATUS option.  The plan for the naive query:
 
 {\small
 \parskip0pt\begin{verbatim}
@@ -453,7 +453,7 @@ Time in hours per person: \textbf{4}
     \hline
     https://www.postgresql.org/docs/current/planner-optimizer.html \tabularnewline
     https://sqlite.org/draft/whybytecode.html \tabularnewline
-    https://www.sqlite.org/optoverview.html.joins \tabularnewline
+    https://www.sqlite.org/optoverview.html#joins \tabularnewline
     \hline
   \end{tabular}
 \end{table}
