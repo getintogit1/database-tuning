@@ -42,7 +42,9 @@ def main():
     print(f"Tuned2.py execution time: {tuned_time:.4f} seconds")
     
 if __name__ == "__main__":
+    print("Using PostgreSQL")
     Utils.use_sqlite3 = False
     main()
+    print("Using SQLite")
     Utils.use_sqlite3 = True
     main()

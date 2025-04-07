@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import psycopg2 as psy
 from Utils import dbSetup, dbname, printQueryResults, user, password
-
+import Utils
 
 
 
@@ -20,8 +20,11 @@ def make_tuned_query(connection):
         SELECT E.ssnum
         FROM Employee E
         JOIN Techdept T ON E.dept = T.dept
-        WHERE E.salary BETWEEN %s AND %s
         """
+        if Utils.use_sqlite3:
+            query += " WHERE E.salary BETWEEN ? AND ?"
+        else:
+            query += " WHERE E.salary BETWEEN %s AND %s"
         lower_bound = avg_salary - 1000
         upper_bound = avg_salary + 1000
 
