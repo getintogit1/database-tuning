@@ -381,7 +381,7 @@ SQLite uses a different execution model than PostgreSQL.  Instead of storing the
 
 For query 1, significant runtime differences could be observed between the naive versions: SQLite managed to complete it in a tenth of the time when compared to PostgreSQL. However, further investigation revealed that this was only the initial execution time for the first row; retrieving all rows is in fact many times slower than in PostgreSQL.
 
-To provide detailed query plans, we complied SQLite using the SQLITE_ENABLE_STMT_SCANSTATUS option.  The plan for the naive query:
+To provide detailed query plans, we complied SQLite using the SQLITE\_ENABLE\_STMT\_SCANSTATUS option.  The plan for the naive query:
 
 {\small
 \parskip0pt\begin{verbatim}
@@ -453,7 +453,7 @@ Time in hours per person: \textbf{4}
     \hline
     https://www.postgresql.org/docs/current/planner-optimizer.html \tabularnewline
     https://sqlite.org/draft/whybytecode.html \tabularnewline
-    https://www.sqlite.org/optoverview.html#joins \tabularnewline
+    https://www.sqlite.org/optoverview.html\#joins \tabularnewline
     \hline
   \end{tabular}
 \end{table}
