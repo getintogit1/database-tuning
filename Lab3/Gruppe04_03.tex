@@ -43,7 +43,11 @@
 Which index data structures (e.g., B$^+$ tree index) are supported?
 
 \subsubsection{B-Tree}
-Postgres uses B-Trees as it's standard data structure for storing indexes. Whenever the \texttt{CREATE INDEX} command is used without additional parameters, a B-Tree is created. The main difference between a B-tree and a B$^+$ tree is that with a B-tree the data is stored in either internal or leaf nodes while a B$^+$ tree stores the data in leaf nodes only. Intuitively, this may seem more efficient , but  this also leads to more storage being used for one internal node which decreases the amount of pointers you can pack into into it. This leads to a smaller fanout compared to a B$^+$ tree. Additionally,  the B$^+$ tree also uses a linked list for data stored in leaf nodes which is not possible for a B tree. Generally speaking B trees are more efficient when it comes to single access of random data while B$^+$ trees are prefered when range-queries have to be executed.
+Postgres uses B-Trees as it's standard data structure for storing indexes. Whenever the \texttt{CREATE INDEX} command is used without additional parameters, a B-Tree is created.
+
+Although the documentation refers to these as B-Trees, they are in fact closer to B$^+$-trees. B-trees are classified as trees which include data inside the internal nodes, while a B$^+$-tree only includes data and pointers to the next node in the individual leaf nodes.  PostgreSQL implements the latter scheme, where "data" actually just denotes a pointer to the heap.
+
+On the other hand, since the actual data is not actually embedded in the index either way, the distinction may not really apply in the first place. 
 
 \subsubsection{Hash}
 Hash indexes in Postgres store a 32-bit hash code of the indexed column which is then used to find and access data. Due to its nature hash indexes are considered when the indexed column is involved in a comparison using the "-"-Operator.
@@ -125,8 +129,6 @@ CLUSTER Employee;
 
 The \texttt{CLUSTER}-operation without any arguemnts will cluster according to the last index used when clustering.
 
-\youranswerhere{}
-
 \subsection{Non-Clustering Indexes}
 
 Discuss how the system supports non-clustering indexes, in particular:
@@ -135,10 +137,12 @@ Discuss how the system supports non-clustering indexes, in particular:
 
 How do you create a combined, non-clustering index on \texttt{(dept,salary)}? Show the query.$^1$
 
-\youranswerhere{}
+As PostgreSQL does not use clustering indexes, it is enough to just use
+CREATE INDEX.
 
 \begin{lstlisting}[style=dbtsql]
-[Your SQL query goes here ...]
+CREATE INDEX idx_dept_salary
+ON employee (dept, salary);
 \end{lstlisting}
 
 \paragraph{b)}
@@ -147,17 +151,138 @@ Can the system take advantage of covering indexes? What if the index covers the 
 
 \youranswerhere{}
 
+Index-only scans are a relatively new feature in PostgreSQL, first introduced in version 9.2.  The reason for this late introduction is that PostgreSQL indexes by default do not include information about tuple visibility to the MVCC (Multi-Version Concurrency Control) snapshot of the given transaction, so they would by default require accesses to the relevant tables anyway.
+
+With the introduction of index-only scans, PostgreSQL now uses a visibility map, where a bit is set on all pages on which all tuples are visible for each snapshot available to active transactions.  If the bit is set, no additional access to the table is required, and queries can be answered using only the index, provided it already includes all required data.
+
+Of course, this still does not mean that no more table accesses are required; if the visibility bit is not set for a page (for example, because a concurrent transaction has unset it), the tuple must still be read from the table itself.  Therefore the term "index-only scan" is somewhat misleading; "index-mostly scan" is more accurate.
+
+PostgreSQL only considers index-only scans if the majority of these visibility bits are set.  Therefore this feature is mainly useful for tables which are rarely (or never) modified.
+
+\subsection{Covered Query (Covering Index)}
+Following is an example use of a covering index.  The goal is to compute the average salary of all employees that work in the 'TechdeptA' department.
+
+For this we first create an index on the columns (dept, salary) of the employee table. Then we perform an SQL query on it.
+
+\begin{lstlisting}[style=dbtsql]
+//Create B-Tree index on employee(dept, salary).
+CREATE INDEX s_idx ON employee(dept, salary);
+
+//Execute the actual query.
+EXPLAIN (analyze, buffers)
+SELECT AVG (salary)
+FROM employee
+WHERE dept = ’TechdeptA’;
+\end{lstlisting}
+
+For this, PostgreSQL returns the following execution plan:
+
+\begin{lstlisting}
+Aggregate(cost=42.22..42.23 rows=1 width=4)
+    (actual time=0.305..0.305 rows=1 loops=1)
+Buffers: shared hit=7
+-> Index Only Scan using s_idx on employee e (cost=0.42..39.49 rows=1090 width=4)
+    (actual time=0.108..0.236 rows=1002 loops=1)
+    Index Cond: (dept = ’TechdeptA’::text)
+    Heap Fetches: 0
+    Buffers: shared hit=7
+Total runtime: 0.348 ms
+\end{lstlisting}
+
+Here, the newly created index is used to answer the query solely using information included in the index.  Since the table does not have to be read, the number of heap fetches remains zero.
+
+\subsection{Covered Query (but not prefix)}
+
+Now we wish to count the number of employees that have a salary less than 2000. The salary attribute is included in the index; however, this is sorted by dept.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT COUNT(*)
+FROM employee
+WHERE salary < 2000;
+\end{lstlisting}
+
+\begin{lstlisting}
+Aggregate (cost=2207.90..2207.91 rows=1 width=0)
+    -> Seq Scan on employee e (cost=0.00..2084.01 rows=49556 width=0)
+        Filter: (salary < 2000)
+\end{lstlisting}
+
+Here the planner does not take the use of the index on (dept, salary) into consideration, but rather employs a sequential scan and filters on salary.
+
 \paragraph{c)}
 
 Discuss any further characteristics of the system related to non-clustering indexes that are relevant to a database tuner.
 
-\youranswerhere{}
+In addition to classic non-clustered indexes, PostgreSQL offers two additional functions that can further increase the efficiency of indexes: Partial Indexes and Indexes on Expressions.
+
+\subsection{Partial indexes}
+
+A partial index is only created for a subset of the table. Which tuples are included in the index is defined via a WHERE clause. This allows common values, whose inclusion in the index is of no use anyway, to be specifically excluded.
+
+For values that appear very frequently in a table, the PostgreSQL query planner often decides against using an index anyway and prefers a sequential scan instead. The partial index means that only a specific part of the table is indexed, which offers several advantages:
+
+\begin{itemize}
+ \item The index is smaller and requires less storage space.
+ \item Queries that actually use the index can be executed more efficiently.
+ \item The maintenance effort for the index is also reduced.
+\end{itemize}
+
+Nevertheless, the potential performance gain should not be overestimated - in many scenarios, the advantage of a partial index remains relatively small.  Additionally, common values will commonly be deduplicated by the engine anyway (see example 4).
+
+\subsection{Indexes on expressions}
+
+With an index on expressions, the value of a function can be saved to column contents in the index. This is particularly useful when functions are used in queries:
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM test1 WHERE lower(col1) = 'value';
+\end{lstlisting}
+
+Here, all data records from test1 are to be found in which col1 - irrespective of upper or lower case - contains the value 'value'.
+
+Instead, we can create an index on the expression:
+
+\begin{lstlisting}[style=dbtsql]
+CREATE INDEX test1_lower_col1_idx ON test1 (lower(col1));
+\end{lstlisting}
+
+Now the index only saves the already transformed values. Thus PostgreSQL can answer the query significantly faster, as the function call is replaced by a direct comparison on the index.
 
 \subsection{Key Compression and Page Size}
 
-If your system supports B$^+$ trees, what kind of key compression (if any) is supported? How large is the default disk page? Can it be changed?
+If your system supports B$^+$ trees, what kind of key compression (if any) is supported?
 
-\youranswerhere{}
+While PostgreSQL does not appear to use key compression for its B$^+$-trees, it does have a form of compression called B-tree deduplication since version 13.  When all indexed values in a tuple match those of another in the same table, these form a so-called "posting list", where the key values only appear once followed by a list of all relevant tuple ids.
+
+This may have a significant impact on the size of indexes with a large amount of common values.  For example:
+
+\begin{lstlisting}[style=dbtsql]
+SELECT pg_indexes_size(relid) FROM pg_catalog.pg_statio_user_tables where relname = 'employee';
+-- -> 18530304
+-- now, create an index on dept with deduplication (default)
+CREATE INDEX ON employee (dept);
+DROP INDEX employee_dept_idx
+SELECT pg_indexes_size(relid) FROM pg_catalog.pg_statio_user_tables WHERE relname = 'employee';
+-- -> 19243008
+-- finally, without deduplication:
+CREATE INDEX ON employee (dept) with (deduplicate_items = off);
+-- -> 20897792
+\end{lstlisting}
+
+In this contrived example, the optimization has saved us 1.57M.  However, as noted in the previous example, indexes with such a large number of duplicate keys may also end up being ignored by the planner.
+
+How large is the default disk page?
+
+The default disk page can be queried using the following command, which on a typical PostgreSQL installation will return 8192 (bytes).
+
+\begin{lstlisting}[style=dbtsql]
+SELECT current_setting('block_size');
+\end{lstlisting}
+
+To change the block size, PostgreSQL must be recompiled, passing the \textit{--with-blocksize} parameter to the configure script. Only powers of two between 1024 and 32768 are supported.
+
+\begin{lstlisting}
+./configure --with-blocksize=<size in kB>
+\end{lstlisting}
 
 \subsection*{Time Spent on this Assignment}
 
@@ -170,6 +295,7 @@ Time in hours per person: \textbf{XXX}
   \begin{tabular}{c}
     \hline
     \textbf{Important:} Reference your information sources! \tabularnewline
+    https://stackoverflow.com/questions/25004505/b-tree-or-b-tree \tabularnewline
     https://www.postgresql.org/docs/current/indexes-types.html \tabularnewline
     https://www.shiksha.com/online-courses/articles/difference-between-b-tree-and-b-plus-tree-blogId-155905 \tabularnewline
     https://www.postgresql.org/docs/current/gin.html \tabularnewline
@@ -177,6 +303,12 @@ Time in hours per person: \textbf{XXX}
     https://www.postgresql.org/docs/16/brin-intro.html \tabularnewline
     https://www.postgresql.org/docs/current/sql-cluster.html \tabularnewline
     https://www.cybertec-postgresql.com/en/what-is-fillfactor-and-how-does-it-affect-postgresql-performance \tabularnewline
+    https://www.postgresql.org/docs/current/storage-vm.html \tabularnewline
+    https://www.postgresql.org/docs/current/indexes-index-only-scans.html \tabularnewline
+    https://www.postgresql.org/docs/current/mvcc-intro.html \tabularnewline
+    https://stackoverflow.com/a/67252824 \tabularnewline
+    https://www.postgresql.org/docs/16/btree-implementation.html#BTREE-DEDUPLICATION \tabularnewline
+    https://www.postgresql.org/docs/current/install-make.html#CONFIGURE-OPTIONS-MISC
     \hline
   \end{tabular}
 \end{table}
