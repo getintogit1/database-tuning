@@ -251,7 +251,7 @@ Now the index only saves the already transformed values. Thus PostgreSQL can ans
 
 If your system supports B$^+$ trees, what kind of key compression (if any) is supported?
 
-While PostgreSQL does not appear to use key compression for its B$^+$-trees, it does have a form of compression called B-tree deduplication since version 13.  When all indexed values in a tuple match those of another in the same table, these form a so-called "posting list", where the key values only appear once followed by a list of all relevant tuple ids.
+While PostgreSQL does not appear to use prefix compression for its B$^+$-trees, it does have a form of compression called B-tree deduplication since version 13.  When all indexed values in a tuple match those of another in the same table, these form a so-called "posting list", where the key values only appear once followed by a list of all relevant tuple ids.
 
 This may have a significant impact on the size of indexes with a large amount of common values.  For example:
 
