@@ -26,7 +26,7 @@
   {\large Database Tuning}}
 
 \author{
-  Group Name (e.g. A1, B5, B3) \\
+  A4 \\
   \large Balint Peter, 12213073 \\
   \large Günter Lukas, 12125639 \\
   \large Ottino David, 51841010
@@ -50,7 +50,7 @@ Although the documentation refers to these as B-Trees, they are in fact closer t
 On the other hand, since the actual data is not actually embedded in the index either way, the distinction may not really apply in the first place. 
 
 \subsubsection{Hash}
-Hash indexes in Postgres store a 32-bit hash code of the indexed column which is then used to find and access data. Due to its nature hash indexes are considered when the indexed column is involved in a comparison using the "-"-Operator.
+Hash indexes in Postgres store a 32-bit hash code of the indexed column which is then used to find and access data. Due to its nature hash indexes are considered when the indexed column is involved in a comparison using the "="-Operator.
 
 \subsubsection{GiST}
 GiST stands for Generalized Search Tree. It doesn't describe a specific index type but is more of a framework which allows Postgres-Users to implement their own arbitrary indexing schemes, for example B$^+$ trees. However, it comes with some built-in standard functionality.
@@ -172,7 +172,7 @@ CREATE INDEX s_idx ON employee(dept, salary);
 EXPLAIN (analyze, buffers)
 SELECT AVG (salary)
 FROM employee
-WHERE dept = ’TechdeptA’;
+WHERE dept = 'TechdeptA';
 \end{lstlisting}
 
 For this, PostgreSQL returns the following execution plan:
@@ -183,7 +183,7 @@ Aggregate(cost=42.22..42.23 rows=1 width=4)
 Buffers: shared hit=7
 -> Index Only Scan using s_idx on employee e (cost=0.42..39.49 rows=1090 width=4)
     (actual time=0.108..0.236 rows=1002 loops=1)
-    Index Cond: (dept = ’TechdeptA’::text)
+    Index Cond: (dept = 'TechdeptA'::text)
     Heap Fetches: 0
     Buffers: shared hit=7
 Total runtime: 0.348 ms
@@ -309,8 +309,8 @@ Time in hours per person: \textbf{XXX}
     https://www.postgresql.org/docs/current/indexes-index-only-scans.html \tabularnewline
     https://www.postgresql.org/docs/current/mvcc-intro.html \tabularnewline
     https://stackoverflow.com/a/67252824 \tabularnewline
-    https://www.postgresql.org/docs/16/btree-implementation.html#BTREE-DEDUPLICATION \tabularnewline
-    https://www.postgresql.org/docs/current/install-make.html#CONFIGURE-OPTIONS-MISC
+    https://www.postgresql.org/docs/16/btree-implementation.html\#BTREE-DEDUPLICATION \tabularnewline
+    https://www.postgresql.org/docs/current/install-make.html\#CONFIGURE-OPTIONS-MISC\tabularnewline
     \hline
   \end{tabular}
 \end{table}
