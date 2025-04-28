@@ -256,15 +256,17 @@ While PostgreSQL does not appear to use prefix compression for its B$^+$-trees, 
 This may have a significant impact on the size of indexes with a large amount of common values.  For example:
 
 \begin{lstlisting}[style=dbtsql]
+-- check initial index size
 SELECT pg_indexes_size(relid) FROM pg_catalog.pg_statio_user_tables where relname = 'employee';
 -- -> 18530304
 -- now, create an index on dept with deduplication (default)
 CREATE INDEX ON employee (dept);
-DROP INDEX employee_dept_idx
 SELECT pg_indexes_size(relid) FROM pg_catalog.pg_statio_user_tables WHERE relname = 'employee';
 -- -> 19243008
--- finally, without deduplication:
+DROP INDEX employee_dept_idx;
+-- try again, this time without deduplication:
 CREATE INDEX ON employee (dept) with (deduplicate_items = off);
+SELECT pg_indexes_size(relid) FROM pg_catalog.pg_statio_user_tables WHERE relname = 'employee';
 -- -> 20897792
 \end{lstlisting}
 
