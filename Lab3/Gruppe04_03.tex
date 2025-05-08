@@ -131,27 +131,131 @@ The \texttt{CLUSTER}-operation without any arguemnts will cluster according to t
 
 Discuss how the system supports non-clustering indexes, in particular:
 
+
 \paragraph{a)}
 
 How do you create a combined, non-clustering index on \texttt{(dept,salary)}? Show the query.$^1$
 
 \youranswerhere{}
 
+In PostgreSQL, indexes are by default non-clustered unless explicitly specified otherwise. To create a combined (i.e., multi-column) index on \texttt{(dept, salary)}, the following SQL statement can be used:
+
 \begin{lstlisting}[style=dbtsql]
-[Your SQL query goes here ...]
+CREATE NONCLUSTERED INDEX idx_dept_salary
+ON employee (dept, salary);
 \end{lstlisting}
+
 
 \paragraph{b)}
 
-Can the system take advantage of covering indexes? What if the index covers the query, but the condition is not a prefix of the attribute sequence \texttt{(dept,salary)}?
+\textbf{Index-only Scans} sind ein vergleichsweise neues Feature in PostgreSQL und wurden erst mit Version 9.2 eingeführt. Der Grund für die späte Einführung liegt darin, dass PostgreSQL-Indizes von Haus aus keine Informationen über die Sichtbarkeit von Tupeln enthalten. Daher musste bisher immer zusätzlich auf die eigentliche Tabelle zugegriffen werden, um festzustellen, welche Tupel für eine bestimmte Transaktion sichtbar sind.
 
-\youranswerhere{}
+Mit der Einführung von Index-only Scans nutzt PostgreSQL nun die sogenannte \textit{Visibility Map}. Diese speichert für jede Datenseite ein einzelnes Bit, das angibt, ob alle Tupel auf dieser Seite für alle aktiven Transaktionen sichtbar sind. Ist dieses Bit gesetzt, kann auf einen direkten Zugriff auf die Tabelle verzichtet werden – der Index allein reicht aus, um das Ergebnis zu liefern. Voraussetzung dafür ist natürlich, dass alle für die Abfrage benötigten Daten bereits im Index enthalten sind.
+
+In der Praxis bedeutet das jedoch nicht, dass niemals auf die Tabelle zugegriffen wird. Wenn das Visibility-Bit für eine Seite nicht gesetzt ist, muss der Datensatz weiterhin aus der Tabelle gelesen werden. Daher ist der Begriff „Index-only Scan“ etwas irreführend – treffender wäre wohl „Index-mostly Scan“.
+
+Damit PostgreSQL überhaupt einen Index-only Scan in Betracht zieht, muss ein Großteil der Visibility-Bits gesetzt sein. Aus diesem Grund ist dieses Feature vor allem für statische oder selten veränderte Tabellen besonders geeignet.
+
+\vspace{0.5em}
+\noindent\textbf{Covered Query (Covering Index):}
+
+Im Folgenden zeigen wir ein Beispiel für die Verwendung eines sogenannten \textit{Covering Indexes}. Ziel ist es, das \textbf{Durchschnittsgehalt} aller Angestellten zu ermitteln, die in der Abteilung \texttt{'TechdeptA'} arbeiten.
+
+Zunächst wird ein Index auf den Spalten \texttt{(dept, salary)} der Tabelle \texttt{employee} erstellt, danach erfolgt die eigentliche Abfrage:
+
+\begin{lstlisting}[style=dbtsql]
+//Create B-Tree index on employee(dept, salary).
+CREATE INDEX s_idx ON employee(dept, salary);
+
+//Execute the actual query.
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT AVG(salary)
+FROM employee
+WHERE dept = 'TechdeptA';
+\end{lstlisting}
+
+PostgreSQL liefert dabei den folgenden Ausführungsplan:
+
+\begin{verbatim}
+Aggregate  (cost=42.22..42.23 rows=1 width=4)
+  (actual time=0.305..0.305 rows=1 loops=1)
+  Buffers: shared hit=7
+  -> Index Only Scan using s_idx on employee e 
+     (cost=0.42..39.49 rows=1090 width=4)
+     (actual time=0.108..0.236 rows=1002 loops=1)
+     Index Cond: (dept = 'TechdeptA'::text)
+     Heap Fetches: 0
+     Buffers: shared hit=7
+Total runtime: 0.348 ms
+\end{verbatim}
+
+Der Index wird hier erfolgreich verwendet, um die Anfrage ausschließlich über die im Index enthaltenen Informationen zu beantworten. Die Tabelle selbst wird nicht gelesen – die Anzahl der Heap-Fetches ist also \texttt{0}.
+
+\vspace{0.5em}
+\noindent\textbf{Covered Query, but not prefix:}
+
+Nun soll die \textbf{Anzahl aller Angestellten} ermittelt werden, die ein Gehalt unter \texttt{2000} erhalten. Obwohl das Attribut \texttt{salary} im Index vorhanden ist, ist der Index primär nach \texttt{dept} geordnet.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT COUNT(*)
+FROM employee
+WHERE salary < 2000;
+\end{lstlisting}
+
+Ausführungsplan:
+
+\begin{verbatim}
+Aggregate  (cost=2207.90..2207.91 rows=1 width=0)
+  -> Seq Scan on employee e  
+     (cost=0.00..2084.01 rows=49556 width=0)
+     Filter: (salary < 2000)
+\end{verbatim}
+
+Hier entscheidet sich der PostgreSQL-Query-Planner gegen die Nutzung des bestehenden Indexes auf \texttt{(dept, salary)}. Stattdessen wird ein \texttt{Sequential Scan} durchgeführt. Der Grund: Die Bedingung bezieht sich nicht auf den führenden Teil (Prefix) des Indexes, und der Planner schätzt, dass der Index in diesem Fall keine Vorteile bringt.
+
 
 \paragraph{c)}
 
-Discuss any further characteristics of the system related to non-clustering indexes that are relevant to a database tuner.
+\textbf{Weitere relevante Eigenschaften von Non-Clustering Indexes in PostgreSQL für das Datenbank-Tuning:}
 
-\youranswerhere{}
+PostgreSQL bietet neben klassischen, nicht-clusternden (non-clustered) Indizes zwei besonders interessante Funktionen, die die Effizienz von Index-Nutzung weiter steigern können: \textit{Partial Indexes} (partielle Indizes) und \textit{Indexes on Expressions} (Indizes auf Ausdrücke).
+
+\vspace{0.5em}
+\noindent\textbf{Partial Indexes (Partielle Indizes):}
+
+Ein partieller Index wird nur über eine Teilmenge der Tabelle erstellt. Die zu indexierenden Tupel werden über eine \texttt{WHERE}-Klausel definiert. Diese Technik eignet sich insbesondere, um sehr häufig vorkommende Werte auszuschließen, die bei Abfragen ohnehin nicht vom Index profitieren würden.
+
+Die zugrunde liegende Idee ist, dass der PostgreSQL-Query-Planner bei sehr häufigen Werten tendenziell auf einen \texttt{Sequential Scan} zurückgreift. Ein partieller Index auf nur selektive Werte bietet daher mehrere Vorteile:
+
+\begin{itemize}
+  \item Der Index bleibt klein und speichereffizient.
+  \item Abfragen, die den Index nutzen, können schneller ausgeführt werden.
+  \item Der Wartungsaufwand bei Aktualisierungen oder Einfügungen reduziert sich.
+\end{itemize}
+
+Allerdings sollte der mögliche Performance-Gewinn nicht überschätzt werden – in vielen praktischen Fällen bleibt der Effekt moderat.
+
+\vspace{0.5em}
+\noindent\textbf{Indexes on Expressions (Indizes auf Ausdrücke):}
+
+Mit dieser Funktion kann PostgreSQL auch Ausdrücke oder Funktionswerte als Grundlage für einen Index verwenden. Das ist besonders nützlich, wenn in Abfragen Funktionen wie \texttt{LOWER()}, \texttt{ABS()}, \texttt{DATE\_TRUNC()} oder mathematische Operationen verwendet werden.
+
+\begin{lstlisting}[style=dbtsql]
+// Beispielabfrage:
+SELECT * FROM test1 WHERE lower(col1) = 'value';
+
+// Entsprechender Index:
+CREATE INDEX test1_lower_col1_idx ON test1 (lower(col1));
+\end{lstlisting}
+
+In diesem Beispiel würde normalerweise bei jeder Zeile die Funktion \texttt{lower()} zur Laufzeit aufgerufen. Durch den Index auf \texttt{lower(col1)} wird dieser Schritt bereits vorab gespeichert. Dadurch kann PostgreSQL die Anfrage effizienter beantworten – der Funktionsaufruf entfällt, und der Vergleich erfolgt direkt im Index.
+
+Solche Ausdrucksindizes sind besonders effektiv bei häufig wiederkehrenden Transformationen oder bei Funktionen, die nicht index-transparent sind, wie z.\,B. Groß-/Kleinschreibung oder String-Manipulation.
+
+\vspace{0.5em}
+\noindent\textbf{Fazit:}
+
+Für das Datenbank-Tuning sind partielle Indizes und Ausdrucksindizes leistungsstarke Werkzeuge. Sie ermöglichen eine gezielte Optimierung des Indexzugriffs, reduzieren I/O-Kosten und können den Abfrageplan spürbar verbessern – besonders in großen, stark frequentierten Systemen.
 
 \subsection{Key Compression and Page Size}
 
