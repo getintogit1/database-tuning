@@ -1,5 +1,5 @@
-
 #!/usr/bin/env python3
+
 import psycopg as psy
 import time
 from Setup.Utils import (
@@ -7,51 +7,54 @@ from Setup.Utils import (
     dropOldIndex, createClusteredBTree, 
     createNonClusteredBTree, 
     createHashIndex, explain_query)
+from getUniqueParams import pubids, booktitles, years
 
-
-def run_and_time(cursor, query, params, repetitions=5):
+def run_and_time(cursor, query, param_list, repetitions=1):
     start = time.time()
     for _ in range(repetitions):
-        cursor.execute(query, params)
-        cursor.fetchall()  
+        for params in param_list:
+            cursor.execute(query, (params,))
+            cursor.fetchall()
     end = time.time()
-    return (end - start) / repetitions  
+    total_queries = repetitions * len(param_list)
+    return (end - start) / len(param_list)  # average time per query 
 
 
-def pointQuery(cursor):
+def pointQuery(cursor, repetitions=1):
+
     print("##### Point Query #####")
     query = "SELECT * FROM Publ WHERE pubID = %s;"
-    explain_query(cursor, query, ('books/acm/kim95/Blakeley95',))  
+    explain_query(cursor, query, (pubids[10],))
     print("-" * 110)
-    return run_and_time(cursor, query, ('books/acm/kim95/Blakeley95',))
+    return run_and_time(cursor, query, [p.strip() for p in pubids], repetitions)
 
 
-def multiPointQuery(cursor):
+def multiPointQuery(cursor, repetitions=1):
     print("##### Multi Point #####")
     query = "SELECT * FROM Publ WHERE booktitle = %s;"
-    explain_query(cursor, query, ('Modern Database Systems',))  
+    explain_query(cursor, query, (booktitles[10],))
     print("-" * 110)
-    return run_and_time(cursor, query, ('Modern Database Systems',))
+    return run_and_time(cursor, query, booktitles, repetitions)
 
 
-def multiPointQueryInPredicate(cursor):
+def multiPointQueryInPredicate(cursor, repetitions=1):
     print("##### Multipoint In Predict #####")
     query = "SELECT * FROM Publ WHERE pubID IN (%s);"
-    explain_query(cursor, query, ('acm/kim95',))  
+    explain_query(cursor, query, (pubids[10],))
     print("-" * 110)
-    return run_and_time(cursor, query, ('acm/kim95',))
+    return run_and_time(cursor, query, [p.strip() for p in pubids], repetitions)
 
 
-def multiPointQueryHighSelectivity(cursor):
+def multiPointQueryHighSelectivity(cursor, repetitions=1):
     print("##### High Selective Multipoint #####")
     query = "SELECT * FROM Publ WHERE year = %s;"
-    explain_query(cursor, query, ('1944',))
-    print("-" * 110)  
-    return run_and_time(cursor, query, ('1944',))
+    explain_query(cursor, query, (years[10],))
+    print("-" * 110)
+    return run_and_time(cursor, query, years, repetitions)
 
 
-def run_experiment(create_index_func):
-    print(f"!!! ##### Running: {create_index_func} ##### !!!")
+def run_experiment(create_index_func, repetitions=1):
+    print(f"!!! ##### Running: {create_index_func.__name__} ##### !!!")
     connection = psy.connect(
         host="localhost",
         dbname=dbname,
@@ -63,11 +66,12 @@ def run_experiment(create_index_func):
     dropOldIndex(cursor)
     create_index_func(cursor)
     connection.commit()
+    
     result = {
-        "pointQuery":  pointQuery(cursor),
-        "Multipoint": multiPointQuery(cursor),
-        "Multipoint IN": multiPointQueryInPredicate(cursor),
-        "High selectivity (year)": multiPointQueryHighSelectivity(cursor)
+        "pointQuery":  pointQuery(cursor, repetitions),
+        "Multipoint": multiPointQuery(cursor, repetitions),
+        "Multipoint IN": multiPointQueryInPredicate(cursor, repetitions),
+        "High selectivity (year)": multiPointQueryHighSelectivity(cursor, repetitions)
     }
     
     cursor.close()
@@ -79,11 +83,12 @@ def run_experiment(create_index_func):
 
 
 if __name__ == "__main__":
+    repetitions = 1  # Increase until total runtime > 60s
     result = {
-            "Clustered BTree": run_experiment(createClusteredBTree),
-            "Non Clustered BTree": run_experiment(createNonClusteredBTree),
-            "Hash Index": run_experiment(createHashIndex),
-            "Table Scan": run_experiment(lambda cursor: None)
+        "Clustered BTree": run_experiment(createClusteredBTree, repetitions),
+        "Non Clustered BTree": run_experiment(createNonClusteredBTree, repetitions),
+        "Hash Index": run_experiment(createHashIndex, repetitions),
+        "Table Scan": run_experiment(lambda cursor: None, repetitions)
     }
     query_types = ["pointQuery", "Multipoint", "Multipoint IN", "High selectivity (year)"]
     for query in query_types:
