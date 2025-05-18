@@ -55,9 +55,19 @@ def createClusteredBTree(cursor):
     cursor.execute("CLUSTER Publ USING idx_pubid_clustered;")  # Sorts table once
 
 def createNonClusteredBTree(cursor):
+    #make sure data is not ordered after clustered BTree from before
+    cursor.execute("CREATE INDEX idx_type ON Publ(type);")
+    cursor.execute("CLUSTER Publ using idx_type;")
+    cursor.execute("DROP INDEX idx_type;")
+    #now create the index
     cursor.execute("CREATE INDEX idx_pubid_nonClustered ON Publ(pubID);")
 
 def createHashIndex(cursor):
+    #make sure data is not ordered after clustered BTree from before
+    cursor.execute("CREATE INDEX idx_type ON Publ(type);")
+    cursor.execute("CLUSTER Publ using idx_type;")
+    cursor.execute("DROP INDEX idx_type;")
+    #now create the index
     cursor.execute("CREATE INDEX idx_pubid_hash ON Publ USING hash(pubID);")
 
 

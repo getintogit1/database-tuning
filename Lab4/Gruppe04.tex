@@ -1,0 +1,540 @@
+\documentclass[11pt]{scrartcl}
+
+\usepackage[top=1.5cm]{geometry}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\setlength{\parindent}{0em}
+\setlength{\parskip}{0.5em}
+
+\newcommand{\youranswerhere}{[Your answer goes here \ldots]}
+\renewcommand{\thesubsection}{\arabic{subsection}}
+
+\lstdefinestyle{dbtsql}{
+  language=SQL,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{magenta!75!black},
+  stringstyle=\color{green!50!black},
+  showspaces=false,
+  showstringspaces=false,
+  commentstyle=\color{gray}}
+
+\title{
+  \textbf{\large Assignment 4} \\
+  Index Tuning -- Selection \\
+  {\large Database Tuning}}
+
+\author{
+  A4 \\
+  \large Balint Peter, 12213073 \\
+  \large Günter Lukas, 12125639 \\
+  \large Ottino David, 51841010
+}
+
+\begin{document}
+
+\maketitle
+
+\paragraph{Notes}
+
+\begin{itemize}
+  \item Do not forget to run \lstinline[style=dbtsql]{ANALYZE tablename} after creating or changing a table.
+  \item Use \lstinline[style=dbtsql]{EXPLAIN ANALYZE} for the query plans that you display in the report.
+\end{itemize}
+
+\subsection*{Experimental Setup}
+
+How do you send the queries to the database? How do you measure the execution time for a sequence of queries?
+
+Data Set: publ.tsv, size: 118 MB and auth.tsv, size: 139 MB
+
+Schemes: P\{name, pubid\} A\{pubid, type, title, booktitle, year, publisher\}
+
+We use: Python3
+
+DBMS: PostgreSQL 14.7
+
+When we filled our tables we avoided key or foreign key constraints to avoid conflicts with later index creation. Both are running local on the same machine to avoid network latencies. We measure the time of the individual queries with the built in “time” library of python and the overall running time of the whole script the with “time” function of bash
+
+\subsection*{Clustering B$^+$ Tree Index}
+
+\paragraph{Point Query}
+
+Repeat the following query multiple times with different conditions for \texttt{pubID}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+We extracted the first 100 unique values of the attribut \texttt{pubID} from the table \texttt{Publ}. The table is randomly sorted to avoid always selecting the same first values. Those values are then used in the query.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT pubID FROM Publ
+WHERE pubID IS NOT NULL 
+GROUP BY pubID
+ORDER BY RANDOM() 
+LIMIT 100;
+\end{lstlisting}
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.00020982424418131512 seconds
+
+Calculated throughput: 4765 queries per second
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Index Scan using idx_pubid_clustered on publ  (cost=0.43..8.45 rows=1 width=118) 
+(actual time=0.088..0.088 rows=1 loops=1)
+  Index Cond: ((pubid)::text = 'conf/agents/Sengers98'::text)
+\end{verbatim}}
+
+\paragraph{Multipoint Query vs. Multipoint Query IN-Predicate -- Low Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{booktitle}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE booktitle = ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID IN (...)
+\end{lstlisting}
+
+Which conditions did you use?
+
+Again, we selected 100 random values from \texttt{Publ} and ran the queries with those values. For the multipoint query with IN-Predicate we also selected 100 random values and split them up in groups of 10, which then are used for the IN-selection.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT booktitle FROM Publ
+WHERE booktitle IS NOT NULL 
+GROUP BY booktitle
+ORDER BY RANDOM() 
+LIMIT 100;
+\end{lstlisting}
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries (multipoint): 0.13089529355367024 seconds
+
+Average runtime over all queries (multipoint with IN): 0.00035497546195983887 seconds
+
+Calculated throughput (multipoint): 8.8893 queries per second
+
+Calculated throughput (multipoint with IN): 2 817 queries per second
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..30921.08 rows=181 width=118) 
+(actual time=91.466..131.932 rows=128 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=75 width=118) 
+        (actual time=77.534..89.322 rows=43 loops=3)
+            Filter: ((booktitle)::text = 'W4A'::text)
+\end{verbatim}}
+
+{\small
+\parskip0pt\begin{verbatim}
+Index Scan using idx_pubid_clustered on publ  (cost=0.43..51.70 rows=10 width=118) 
+(actual time=0.028..0.130 rows=10 loops=1)
+  Index Cond: ((pubid)::text = ANY ('{journals/eik/Burkhard76a,...}'::text[]))
+\end{verbatim}}
+
+\paragraph{Multipoint Query -- High Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{year}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE year = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+Once again 100 random values have been select from \texttt{publ}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT year FROM Publ
+WHERE year IS NOT NULL 
+GROUP BY year
+ORDER BY RANDOM() 
+LIMIT 100;
+\end{lstlisting}
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.1545756498972575 seconds
+
+Calculated throughput: 6.46 queries per second
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..30922.58 rows=196 width=118) 
+(actual time=45.647..120.119 rows=203 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=82 width=118) 
+       (actual time=44.298..82.342 rows=68 loops=3)
+          Filter: ((year)::text = '1960'::text)
+          Rows Removed by Filter: 411003
+\end{verbatim}}
+
+\subsection*{Non-Clustering B$^+$ Tree Index}
+
+\emph{Note:} Make sure the data is not physically ordered by the indexed attributes due to the clustering index that you created before.
+
+\paragraph{Point Query}
+
+Repeat the following query multiple times with different conditions for \texttt{pubID}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+Same as before.
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.00019787152608235676 seconds
+
+Claculated throughput: 5053 queries per second
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Index Scan using idx_pubid_hash on publ  (cost=0.00..8.02 rows=1 width=118) 
+(actual time=0.015..0.015 rows=1 loops=1)
+  Index Cond: ((pubid)::text = 'journals/entcs/AhoniemiL07'::text)
+\end{verbatim}}
+
+\paragraph{Multipoint Query vs. Multipoint Query IN-Predicate -- Low Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{booktitle}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE booktitle = ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID IN (...)
+\end{lstlisting}
+
+
+Which conditions did you use?
+
+See above
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries (multipoint): 0.11964255650838217 seconds
+
+Average runtime over all queries (multipoint with IN): 0.0006836056709289551 seconds
+
+Calculated throughput (multipoint): 8.3582 queries per second
+
+Calculated throughput (multipoint with IN): 1462 queries per second 
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..30921.08 rows=181 width=118) 
+(actual time=30.014..121.291 rows=345 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=75 width=118) 
+        (actual time=45.154..81.109 rows=115 loops=3)
+           Filter: ((booktitle)::text = 'PROLAMAT'::text)
+           Rows Removed by Filter: 410956
+\end{verbatim}}
+
+{\small
+\parskip0pt\begin{verbatim}
+Index Scan using idx_pubid_nonclustered on publ  (cost=0.43..51.70 rows=10 width=118) 
+(actual time=0.032..0.114 rows=10 loops=1)
+  Index Cond: ((pubid)::text = ANY ('{journals/bell/Labrogere08,...}'::text[]))
+\end{verbatim}}
+
+\paragraph{Multipoint Query -- High Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{year}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE year = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+Same as above.
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.1524947452545166 seconds
+
+Query plan (for one of the queries): 6.5576 queries per second
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..31096.18 rows=1932 width=118) 
+(actual time=4.400..157.862 rows=1531 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=805 width=118) 
+        (actual time=30.366..72.276 rows=510 loops=3)
+           Filter: ((year)::text = '1973'::text)
+           Rows Removed by Filter: 410561
+\end{verbatim}}
+
+\subsection*{Non-Clustering Hash Index}
+
+\emph{Note:} Make sure the data is not physically ordered by the indexed attributes due to the clustering index that you created before.
+
+\paragraph{Point Query}
+
+Repeat the following query multiple times with different conditions for \texttt{pubID}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+Same as above.
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.00010968208312988282 seconds
+
+Calculated throughput: 0,00010968208312988282
+
+Query plan (for one of the queries): 9117 queries per second
+
+{\small
+\parskip0pt\begin{verbatim}
+Index Scan using idx_pubid_hash on publ  (cost=0.00..8.02 rows=1 width=118) 
+(actual time=0.015..0.015 rows=1 loops=1)
+  Index Cond: ((pubid)::text = 'journals/entcs/AhoniemiL07'::text)
+\end{verbatim}}
+
+\paragraph{Multipoint Query vs. Multipoint Query IN-Predicate -- Low Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{booktitle}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE booktitle = ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID IN (...)
+\end{lstlisting}
+
+
+Which conditions did you use?
+
+Same as above
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries (multipoint): 0.11964255650838217 seconds
+
+Average runtime over all queries (multipoint with IN): 0.0006836056709289551 seconds
+
+Calculated throughput (multipoint): 8.3582 queries per second
+
+Calculated thorughput (multipoint with IN): 1462 queries per second
+
+Query plan (for one of the queries): 
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..30921.08 rows=181 width=118) 
+(actual time=26.621..155.068 rows=345 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=75 width=118) 
+        (actual time=11.182..62.757 rows=115 loops=3)
+           Filter: ((booktitle)::text = 'PROLAMAT'::text)
+           Rows Removed by Filter: 410956   
+\end{verbatim}}
+
+{\small
+\parskip0pt\begin{verbatim}
+Bitmap Heap Scan on publ  (cost=40.10..79.63 rows=10 width=118) 
+(actual time=0.281..0.291 rows=10 loops=1)
+  Recheck Cond: ((pubid)::text = ANY ('{journals/bell/Labrogere08,...}'::text[]))
+  Heap Blocks: exact=10
+  ->  Bitmap Index Scan on idx_pubid_hash  (cost=0.00..40.08 rows=10 width=0) 
+        (actual time=0.255..0.255 rows=10 loops=1)
+           Index Cond: ((pubid)::text = ANY ('{journals/bell/Labrogere08,...}'::text[]))
+ 
+\end{verbatim}}
+
+\paragraph{Multipoint Query -- High Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{year}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE year = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+Same as above.
+
+Show the runtime results and compute the throughput.
+
+Average runtime over all queries: 0.1416764259338379 seconds
+
+Calculated throughput: 7.0583 queries per second
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.00..31096.18 rows=1932 width=118) 
+(actual time=3.121..162.150 rows=1531 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=805 width=118) 
+       (actual time=22.598..57.898 rows=510 loops=3)
+           Filter: ((year)::text = '1973'::text)
+           Rows Removed by Filter: 410561
+\end{verbatim}}
+
+\subsection*{Table Scan}
+
+\emph{Note:} Make sure the data is not physically ordered by the indexed attributes due to the clustering index that you created before.
+
+\paragraph{Point Query}
+
+Repeat the following query multiple times with different conditions for \texttt{pubID}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID = ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID IN (...)
+\end{lstlisting}
+
+
+Which conditions did you use?
+
+\youranswerhere{}
+
+Show the runtime results and compute the throughput.
+
+\youranswerhere{}
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+[Your query plan goes here ...]
+\end{verbatim}}
+
+\paragraph{Multipoint Query vs. Multipoint Query IN-Predicate -- Low Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{booktitle}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE booktitle = ...
+\end{lstlisting}
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE pubID IN (...)
+\end{lstlisting}
+
+Which conditions did you use?
+
+\youranswerhere{}
+
+Show the runtime results and compute the throughput.
+
+\youranswerhere{}
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+[Your query plan goes here ...]
+\end{verbatim}}
+
+\paragraph{Multipoint Query -- High Selectivity}
+
+Repeat the following query multiple times with different conditions for \texttt{year}.
+
+\begin{lstlisting}[style=dbtsql]
+SELECT * FROM Publ WHERE year = ...
+\end{lstlisting}
+
+Which conditions did you use?
+
+\youranswerhere{}
+
+Show the runtime results and compute the throughput.
+
+\youranswerhere{}
+
+Query plan (for one of the queries):
+
+{\small
+\parskip0pt\begin{verbatim}
+[Your query plan goes here ...]
+\end{verbatim}}
+
+\subsection*{Discussion}
+
+Give the throughput of the query types and index types in queries/second.
+\begin{table}[H]
+  \centering
+  \begin{tabular}{c|c|c|c|c}
+    & clustering & non-clust.\ B$^+$ tree & non-clust.\ hash & table scan
+      \tabularnewline
+    \hline
+    point (\texttt{pubID}) & \ldots & \ldots & \ldots & \ldots \tabularnewline
+    \hline
+    multipoint (\texttt{booktitle}) & \ldots & \ldots & \ldots & \ldots
+      \tabularnewline
+    \hline
+		multipoint-IN (\texttt{pubID}) & \ldots & \ldots & \ldots & \ldots
+      \tabularnewline
+		\hline
+    multipoint (\texttt{year}) & \ldots & \ldots & \ldots & \ldots
+      \tabularnewline
+  \end{tabular}
+\end{table}
+
+Discuss the runtime results for the different index types and the table scan. Are the results expected? Why (not)?
+
+\youranswerhere{}
+
+\subsection*{Time Spent on this Assignment}
+
+Time in hours per person: \textbf{XXX}
+
+\subsection*{References}
+
+\begin{table}[H]
+  \centering
+  \begin{tabular}{c}
+    \hline
+    \textbf{Important:} Reference your information sources! \tabularnewline
+    Remove this section if you use footnotes to reference your information sources. \tabularnewline
+    \hline
+  \end{tabular}
+\end{table}
+
+\end{document}

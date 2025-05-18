@@ -2,6 +2,7 @@
 import time
 import subprocess
 import psycopg2
+import Tuned
 from Utils import dbname, password, user
 
 print(user)
@@ -31,7 +32,7 @@ def clear_tables():
 def measure_execution_time(script_name):
     start_time = time.time()  
     try:        
-        subprocess.run(['python3', script_name], check=True)  
+        subprocess.run(['py', script_name], check=True)  
     except subprocess.CalledProcessError as e:
         print(f"Error running script {script_name}: {e}")
         return None
@@ -41,17 +42,17 @@ def measure_execution_time(script_name):
 
 def main():
     clear_tables()
-    print("Running Naive.py")
-    naive_time = measure_execution_time('Naive.py')
-    print(f"Naive.py execution time: {naive_time:.4f} seconds")
-    clear_tables()
+    #print("Running Naive.py")
+    #naive_time = measure_execution_time('Naive.py')
+    #print(f"Naive.py execution time: {naive_time:.4f} seconds")
+    #clear_tables()
     print("Running Tuned.py")
     tuned_time = measure_execution_time('Tuned.py')
     print(f"Tuned.py execution time: {tuned_time:.4f} seconds")
-    clear_tables()
-    print("Running Tuned2.py")
-    tuned_time = measure_execution_time('Tuned2.py')
-    print(f"Tuned2.py execution time: {tuned_time:.4f} seconds")
+    #clear_tables()
+    #print("Running Tuned2.py")
+    #tuned_time = measure_execution_time('Tuned2.py')
+    #print(f"Tuned2.py execution time: {tuned_time:.4f} seconds")
 
 if __name__ == "__main__":
     main()

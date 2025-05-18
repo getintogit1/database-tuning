@@ -36,13 +36,35 @@ def multiPointQuery(cursor, repetitions=1):
     print("-" * 110)
     return run_and_time(cursor, query, booktitles, repetitions)
 
+def chunked(lst, size):
+    for i in range(0, len(lst), size):
+        yield lst[i:i + size]
 
-def multiPointQueryInPredicate(cursor, repetitions=1):
-    print("##### Multipoint In Predict #####")
-    query = "SELECT * FROM Publ WHERE pubID IN (%s);"
-    explain_query(cursor, query, (pubids[10],))
+def multiPointQueryInPredicate(cursor, repetitions=1, batch_size=10):
+    print("##### Multipoint IN Predicate (Batched) #####")
+
+    cleaned_pubids = [p.strip() for p in pubids]
+    batches = list(chunked(cleaned_pubids, batch_size))
+    
+    # Explain query for the first batch only
+    first_batch = batches[0]
+    placeholders = ', '.join(['%s'] * len(first_batch))
+    query = f"SELECT * FROM Publ WHERE pubID IN ({placeholders});"
+    explain_query(cursor, query, tuple(first_batch))
     print("-" * 110)
-    return run_and_time(cursor, query, [p.strip() for p in pubids], repetitions)
+    
+    start = time.time()
+    for _ in range(repetitions):
+        for batch in batches:
+            placeholders = ', '.join(['%s'] * len(batch))
+            query = f"SELECT * FROM Publ WHERE pubID IN ({placeholders});"
+            cursor.execute(query, tuple(batch))
+            cursor.fetchall()
+    end = time.time()
+    
+    total_queries = repetitions * len(batches)
+    return (end - start) / total_queries  # average time per batch
+
 
 
 def multiPointQueryHighSelectivity(cursor, repetitions=1):
@@ -76,6 +98,7 @@ def run_experiment(create_index_func, repetitions=1):
     
     cursor.close()
     connection.close()
+    print(result)
     return result
 
 

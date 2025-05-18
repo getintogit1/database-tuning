@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import psycopg as psy
+import os
 from Utils import use_sqlite3, dbSetup
 
 
@@ -13,7 +14,7 @@ def insert_auth_data(file_path, batch_size=1000):
     count = 0
     batch = []
     
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding="utf-8") as file:
         next(file)  # Skip header row
         for line in file:
             if count >= tupleLimit:
@@ -43,7 +44,7 @@ def insert_publ_data(file_path, batch_size=1000):
     count = 0
     batch = []
     
-    with open(file_path, 'r') as file:
+    with open(file_path, 'r', encoding="utf-8") as file:
         next(file)  # Skip the header row
         for line in file:
             if count >= tupleLimit:
@@ -71,8 +72,11 @@ def execute_batch_publ(batch):
         values = [item for sublist in batch for item in sublist]
         cursor.execute(f"INSERT INTO Publ (pubID, type, title, booktitle, year, publisher) VALUES {placeholders};", values, prepare = True)
 
-filepath1 = 'auth.tsv'
-filepath2 = 'publ.tsv'
+base_path = os.path.dirname(os.path.abspath(__file__))
+filepath1 = os.path.join(base_path, 'auth.tsv')
+filepath2 = os.path.join(base_path, 'publ.tsv')
+#filepath1 = 'auth.tsv'
+#filepath2 = 'publ.tsv'
 insert_auth_data(filepath1)
 insert_publ_data(filepath2) 
 connection.commit()
