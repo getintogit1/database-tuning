@@ -7,7 +7,7 @@ from Setup.Utils import (
     dropOldIndex, createClusteredBTree, 
     createNonClusteredBTree, 
     createHashIndex, explain_query)
-from getUniqueParams import pubids, booktitles, years
+from Setup.getUniqueParams import pubids, booktitles, years
 
 def run_and_time(cursor, query, param_list, repetitions=1):
     start = time.time()
