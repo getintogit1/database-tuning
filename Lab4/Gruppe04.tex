@@ -69,7 +69,7 @@ SELECT * FROM Publ WHERE pubID = ...
 
 Which conditions did you use?
 
-We extracted the first 100 unique values of the attribut \texttt{pubID} from the table \texttt{Publ}. The table is randomly sorted to avoid always selecting the same first values. Those values are then used in the query.
+We extracted the first 100 unique values of the attribut \texttt{pubID} from the table \texttt{Publ}. The table is randomly sorted to avoid always selecting the same first values. Those values are then used in the query. We avoid using the same queries directly after each other since Postgres could cache the results, therefore consecutive executions of the same query will in general lead to faster runtimes.
 
 \begin{lstlisting}[style=dbtsql]
 SELECT pubID FROM Publ
@@ -240,11 +240,11 @@ Show the runtime results and compute the throughput.
 
 Average runtime over all queries (multipoint): 0.11964255650838217 seconds
 
-Average runtime over all queries (multipoint with IN): 0.0006836056709289551 seconds
+Average runtime over all queries (multipoint with IN): 0.0004431605339050293 seconds
 
 Calculated throughput (multipoint): 8.3582 queries per second
 
-Calculated throughput (multipoint with IN): 1462 queries per second 
+Calculated throughput (multipoint with IN): 2256 queries per second 
 
 Query plan (for one of the queries):
 
@@ -317,9 +317,9 @@ Show the runtime results and compute the throughput.
 
 Average runtime over all queries: 0.00010968208312988282 seconds
 
-Calculated throughput: 0,00010968208312988282
+Calculated throughput: 9117 queries per second
 
-Query plan (for one of the queries): 9117 queries per second
+Query plan (for one of the queries): 
 
 {\small
 \parskip0pt\begin{verbatim}
@@ -425,24 +425,33 @@ Repeat the following query multiple times with different conditions for \texttt{
 SELECT * FROM Publ WHERE pubID = ...
 \end{lstlisting}
 
-\begin{lstlisting}[style=dbtsql]
-SELECT * FROM Publ WHERE pubID IN (...)
-\end{lstlisting}
-
 
 Which conditions did you use?
 
-\youranswerhere{}
+Same as above.
 
 Show the runtime results and compute the throughput.
 
-\youranswerhere{}
+Average runtime over all queries (single select): 0.11055562655131022 seconds
+
+
+
+Calculated throughput (single select): 9.0452 queries per second
+
+
 
 Query plan (for one of the queries):
 
 {\small
 \parskip0pt\begin{verbatim}
-[Your query plan goes here ...]
+Gather  (cost=1000.00..30903.08 rows=1 width=118) 
+(actual time=98.916..147.098 rows=1 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=1 width=118) 
+        (actual time=45.902..49.239 rows=0 loops=3)
+           Filter: ((pubid)::text = 'journals/entcs/AhoniemiL07'::text)
+           Rows Removed by Filter: 411071
 \end{verbatim}}
 
 \paragraph{Multipoint Query vs. Multipoint Query IN-Predicate -- Low Selectivity}
@@ -459,17 +468,42 @@ SELECT * FROM Publ WHERE pubID IN (...)
 
 Which conditions did you use?
 
-\youranswerhere{}
+Same as above.
 
 Show the runtime results and compute the throughput.
 
-\youranswerhere{}
+Average runtime over all queries (multipoint IN): 0.13194787502288818 seconds
+
+Average runtime over all queries (multipoint): 0.11779035886128743 seconds
+
+Calculated throughput (multipoint IN): 7.5787 queries per second
+
+Calculated throughput (multipoint): 8.4896 queries per second
 
 Query plan (for one of the queries):
 
 {\small
 \parskip0pt\begin{verbatim}
-[Your query plan goes here ...]
+Gather  (cost=1000.00..30921.08 rows=181 width=118) 
+(actual time=26.307..96.095 rows=345 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=75 width=118) 
+        (actual time=10.139..54.469 rows=115 loops=3)
+           Filter: ((booktitle)::text = 'PROLAMAT'::text)
+           Rows Removed by Filter: 410956
+\end{verbatim}}
+
+{\small
+\parskip0pt\begin{verbatim}
+Gather  (cost=1000.02..32188.61 rows=10 width=118) 
+(actual time=16.712..103.601 rows=10 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.03..31187.61 rows=4 width=118) 
+       (actual time=20.996..60.818 rows=3 loops=3)
+           Filter: ((pubid)::text = ANY ('{journals/bell/Labrogere08,...}'::text[]))
+           Rows Removed by Filter: 411068
 \end{verbatim}}
 
 \paragraph{Multipoint Query -- High Selectivity}
@@ -482,17 +516,26 @@ SELECT * FROM Publ WHERE year = ...
 
 Which conditions did you use?
 
-\youranswerhere{}
+Same as above.
 
 Show the runtime results and compute the throughput.
 
-\youranswerhere{}
+Average runtime over all queries: 0.14277080535888673 seconds
+
+Calculated throughput: 7.0042 queries per second
 
 Query plan (for one of the queries):
 
 {\small
 \parskip0pt\begin{verbatim}
-[Your query plan goes here ...]
+Gather  (cost=1000.00..31096.18 rows=1932 width=118) 
+(actual time=3.930..109.379 rows=1531 loops=1)
+  Workers Planned: 2
+  Workers Launched: 2
+  ->  Parallel Seq Scan on publ  (cost=0.00..29902.98 rows=805 width=118) 
+       (actual time=32.132..64.346 rows=510 loops=3)
+           Filter: ((year)::text = '1973'::text)
+           Rows Removed by Filter: 410561
 \end{verbatim}}
 
 \subsection*{Discussion}
@@ -504,26 +547,32 @@ Give the throughput of the query types and index types in queries/second.
     & clustering & non-clust.\ B$^+$ tree & non-clust.\ hash & table scan
       \tabularnewline
     \hline
-    point (\texttt{pubID}) & \ldots & \ldots & \ldots & \ldots \tabularnewline
+    point (\texttt{pubID}) & 4765 & 5053 & 9117 & 9.0452 \tabularnewline
     \hline
-    multipoint (\texttt{booktitle}) & \ldots & \ldots & \ldots & \ldots
+    multipoint (\texttt{booktitle}) & 8.8893 & 8.3582 & 8.3582 & 8.4896
       \tabularnewline
     \hline
-		multipoint-IN (\texttt{pubID}) & \ldots & \ldots & \ldots & \ldots
+		multipoint-IN (\texttt{pubID}) & 2817 & 2256 & 1462 & 7.5787
       \tabularnewline
 		\hline
-    multipoint (\texttt{year}) & \ldots & \ldots & \ldots & \ldots
+    multipoint (\texttt{year}) & 6.46 & 6.5576 & 7.0583 & 7.0042
       \tabularnewline
   \end{tabular}
 \end{table}
 
 Discuss the runtime results for the different index types and the table scan. Are the results expected? Why (not)?
 
-\youranswerhere{}
+The runtime results are more or less expected. Hash indexes perform great for single point queries and therefore got the best results there, while a table scan has to go through the whole table to return the value which takes a long time.
+
+According to the analyzed query plan the index is not used for a multipoint query. The performance is always more or less the same, regardless of index, because Postgres prefers to do a parallel sequential scan in this case. This is because an index scan requires several IO operations for each row (look up the row in the 	index, then retrieve the row from the heap). Whereas a sequential scan only requires a single IO for each row - or even less because a block (page) on the disk contains more than one row, so more than one row can be fetched with a single IO operation.
+
+The multipoint query with the IN-statement was the only surprise during the experiment. Here the clustering B$^+$ tree had a clearly better performance. In every analyzed query the index was actually used, and to no surprise the Hash-index was outperformed since it is best for single-point and not for the multi-point-query (which is a series of single point queries in this case). However, the clustering index was significantly faster than its non-clustering counterpart. Most likely Postgres orders the values in the IN-statement and is therefore able to take advantage of the physical sorting, but we were unable to find clear evidence for this theory.
+
+The high-selectivity multipoint query again results in a table scan of all the data, therefore the results are more or less the same. Again, Postgres prefers the table scan in this case to reduce operations with the index.
 
 \subsection*{Time Spent on this Assignment}
 
-Time in hours per person: \textbf{XXX}
+Time in hours per person: \textbf{5h}
 
 \subsection*{References}
 
@@ -532,7 +581,8 @@ Time in hours per person: \textbf{XXX}
   \begin{tabular}{c}
     \hline
     \textbf{Important:} Reference your information sources! \tabularnewline
-    Remove this section if you use footnotes to reference your information sources. \tabularnewline
+    https://www.timescale.com/blog/database-scaling-postgresql-caching-explained \tabularnewline
+    https://stackoverflow.com/questions/5203755/why-does-postgresql-perform-sequential-scan-on-indexed-column \tabularnewline
     \hline
   \end{tabular}
 \end{table}
