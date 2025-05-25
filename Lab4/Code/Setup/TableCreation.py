@@ -2,7 +2,7 @@
 import psycopg2 as psy
 from Utils import dbSetup, dbname, user, password
 
-connection = dbSetup(dbname, user, password)
+connection = dbSetup()
 def createTables(connection):
     cursor = connection.cursor() 
     cursor.execute("""

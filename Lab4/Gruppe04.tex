@@ -69,7 +69,7 @@ SELECT * FROM Publ WHERE pubID = ...
 
 Which conditions did you use?
 
-We extracted the first 100 unique values of the attribut \texttt{pubID} from the table \texttt{Publ}. The table is randomly sorted to avoid always selecting the same first values. Those values are then used in the query. We avoid using the same queries directly after each other since Postgres could cache the results, therefore consecutive executions of the same query will in general lead to faster runtimes.
+We extracted the first 100 unique values of the attribute \texttt{pubID} from the table \texttt{Publ}. The table is randomly sorted to avoid always selecting the same first values. Those values are then used in the query. We avoid using the same queries directly after each other since Postgres could cache the results, therefore consecutive executions of the same query will in general lead to faster runtimes.
 
 \begin{lstlisting}[style=dbtsql]
 SELECT pubID FROM Publ
@@ -208,7 +208,7 @@ Show the runtime results and compute the throughput.
 
 Average runtime over all queries: 0.00019787152608235676 seconds
 
-Claculated throughput: 5053 queries per second
+Caculated throughput: 5053 queries per second
 
 Query plan (for one of the queries):
 
@@ -564,7 +564,7 @@ Discuss the runtime results for the different index types and the table scan. Ar
 
 The runtime results are more or less expected. Hash indexes perform great for single point queries and therefore got the best results there, while a table scan has to go through the whole table to return the value which takes a long time.
 
-According to the analyzed query plan the index is not used for a multipoint query. The performance is always more or less the same, regardless of index, because Postgres prefers to do a parallel sequential scan in this case. This is because an index scan requires several IO operations for each row (look up the row in the 	index, then retrieve the row from the heap). Whereas a sequential scan only requires a single IO for each row - or even less because a block (page) on the disk contains more than one row, so more than one row can be fetched with a single IO operation.
+According to the analyzed query plan, the index is not used for a multipoint query. The performance is always more or less the same, regardless of index, because Postgres prefers to do a parallel sequential scan in this case. This is because an index scan requires several IO operations for each row (look up the row in the 	index, then retrieve the row from the heap). Whereas a sequential scan only requires a single IO for each row - or even less because a block (page) on the disk contains more than one row, so more than one row can be fetched with a single IO operation.
 
 The multipoint query with the IN-statement was the only surprise during the experiment. Here the clustering B$^+$ tree had a clearly better performance. In every analyzed query the index was actually used, and to no surprise the Hash-index was outperformed since it is best for single-point and not for the multi-point-query (which is a series of single point queries in this case). However, the clustering index was significantly faster than its non-clustering counterpart. Most likely Postgres orders the values in the IN-statement and is therefore able to take advantage of the physical sorting, but we were unable to find clear evidence for this theory.
 
