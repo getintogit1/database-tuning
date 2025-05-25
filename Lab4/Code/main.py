@@ -21,7 +21,6 @@ def run_and_time(cursor, query, param_list, repetitions=1):
 
 
 def pointQuery(cursor, repetitions=1):
-
     print("##### Point Query #####")
     query = "SELECT * FROM Publ WHERE pubID = %s;"
     explain_query(cursor, query, (pubids[10],))
@@ -93,7 +92,7 @@ def run_experiment(create_index_func, repetitions=1):
         "pointQuery":  pointQuery(cursor, repetitions),
         "Multipoint": multiPointQuery(cursor, repetitions),
         "Multipoint IN": multiPointQueryInPredicate(cursor, repetitions),
-        "High selectivity (year)": multiPointQueryHighSelectivity(cursor, repetitions)
+        "High selectivity": multiPointQueryHighSelectivity(cursor, repetitions)
     }
     
     cursor.close()
@@ -113,7 +112,8 @@ if __name__ == "__main__":
         "Hash Index": run_experiment(createHashIndex, repetitions),
         "Table Scan": run_experiment(lambda cursor: None, repetitions)
     }
-    query_types = ["pointQuery", "Multipoint", "Multipoint IN", "High selectivity (year)"]
+
+    query_types = ["pointQuery", "Multipoint", "Multipoint IN", "High selectivity"]
     for query in query_types:
         min_time = float("inf")
         best_index = None

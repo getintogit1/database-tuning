@@ -48,11 +48,11 @@ def dbSetup():
     return connection
 
 def dropOldIndex(cursor):
-    cursor.execute("DROP INDEX IF EXISTS idx_pubid_clustered, idx_booktitle, idx_year, idx_pubid_nonClustered, idx_pubid_hash;")
+    cursor.execute("DROP INDEX IF EXISTS idx_pubid_clustered, idx_year, idx_year, idx_pubid_nonClustered, idx_pubid_hash;")
 
 def createClusteredBTree(cursor):
-    cursor.execute("CREATE INDEX idx_pubid_clustered ON Publ(pubID);")
-    cursor.execute("CLUSTER Publ USING idx_pubid_clustered;")  # Sorts table once
+    cursor.execute("CREATE INDEX idx_year_clustered ON Publ(year);")
+    cursor.execute("CLUSTER Publ USING idx_year_clustered;")  # Sorts table once
 
 def createNonClusteredBTree(cursor):
     #make sure data is not ordered after clustered BTree from before
@@ -60,7 +60,7 @@ def createNonClusteredBTree(cursor):
     cursor.execute("CLUSTER Publ using idx_type;")
     cursor.execute("DROP INDEX idx_type;")
     #now create the index
-    cursor.execute("CREATE INDEX idx_pubid_nonClustered ON Publ(pubID);")
+    cursor.execute("CREATE INDEX idx_year_nonClustered ON Publ(year);")
 
 def createHashIndex(cursor):
     #make sure data is not ordered after clustered BTree from before
@@ -68,7 +68,7 @@ def createHashIndex(cursor):
     cursor.execute("CLUSTER Publ using idx_type;")
     cursor.execute("DROP INDEX idx_type;")
     #now create the index
-    cursor.execute("CREATE INDEX idx_pubid_hash ON Publ USING hash(pubID);")
+    cursor.execute("CREATE INDEX idx_year_hash ON Publ USING hash(year);")
 
 
 def explain_query(cursor, query, params):
