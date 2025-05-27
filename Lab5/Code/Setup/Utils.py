@@ -51,3 +51,27 @@ def explain_query(cursor, query):
     cursor.execute("EXPLAIN ANALYZE " + query)
     plan = cursor.fetchall()
     print("\n".join(row[0] for row in plan))
+
+
+def dropOldIndex(cursor):
+    cursor.execute("DROP INDEX IF EXISTS idx_publ_pubid_nonclustered;")
+    cursor.execute("DROP INDEX IF EXISTS idx_auth_pubid_nonclustered;")
+    cursor.execute("DROP INDEX IF EXISTS idx_publ_pubid_clustered;")
+    cursor.execute("DROP INDEX IF EXISTS idx_auth_pubid_clustered;")
+
+
+def createNonClusteredBTree(table, column):
+    def create(cursor):
+        print(f"Creating non-clustered index on {table}.{column}")
+        cursor.execute(f"CREATE INDEX idx_{table}_{column}_nonclustered ON {table} ({column});")
+    return create
+
+
+def createClusteredBTree(table, column):
+    def create(cursor):
+        print(f"Creating clustered index on {table}.{column}")
+        cursor.execute(f"CREATE INDEX idx_{table.lower()}_{column.lower()}_clustered ON {table} ({column});")
+        cursor.execute(f"CLUSTER {table} USING idx_{table.lower()}_{column.lower()}_clustered;")
+    return create
+
+
