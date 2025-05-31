@@ -3,6 +3,7 @@
 import psycopg as psy
 from Setup.Utils import dbname, user, password
 from Setup.tasks import task1, task2, task3, task4 
+import pandas as pd
 
 
 def main():
@@ -13,7 +14,6 @@ def main():
     password=password,
     port=5432
     )
-    connection.autocommit = True  
     cursor = connection.cursor()
 
     querys =["""SELECT name, title
@@ -24,15 +24,21 @@ def main():
                 WHERE Auth . pubID = Publ . pubID AND 
                 Auth . name = 'Divesh Srivastava' """]
 
-    task1(cursor, querys)
-    task2(cursor, querys)
-    task3(cursor, querys)
-    task4(cursor, querys)
+    all_results = []
+    all_results += task1(cursor, querys)
+    all_results += task2(cursor, querys)
+    all_results += task3(cursor, querys)
+    all_results += task4(cursor, querys)
 
     connection.commit()
     cursor.close()
     connection.close()
+
+    df = pd.DataFrame(all_results)
+    print("\nFinal Summary Table:\n")
+    print(df.to_markdown())
     
+    df.to_csv("join_strategy_results.csv", index=False)
 
 if __name__ == "__main__":
     main()

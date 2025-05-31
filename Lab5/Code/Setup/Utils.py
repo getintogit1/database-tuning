@@ -61,17 +61,17 @@ def dropOldIndex(cursor):
 
 
 def createNonClusteredBTree(table, column):
-    def create(cursor):
+    def createNonClustered(cursor):
         print(f"Creating non-clustered index on {table}.{column}")
         cursor.execute(f"CREATE INDEX idx_{table}_{column}_nonclustered ON {table} ({column});")
-    return create
+    return createNonClustered
 
 
 def createClusteredBTree(table, column):
-    def create(cursor):
+    def createClustered(cursor):
         print(f"Creating clustered index on {table}.{column}")
         cursor.execute(f"CREATE INDEX idx_{table.lower()}_{column.lower()}_clustered ON {table} ({column});")
         cursor.execute(f"CLUSTER {table} USING idx_{table.lower()}_{column.lower()}_clustered;")
-    return create
+    return createClustered
 
 

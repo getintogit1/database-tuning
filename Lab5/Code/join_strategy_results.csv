@@ -1,0 +1,21 @@
+query_id,strategy,index,time
+1,Default (Planner's Choice),No Index,3.454690456390381
+1,Default (Planner's Choice),createNonClustered,3.1665754318237305
+1,Default (Planner's Choice),"createClustered, createClustered",2.9174675941467285
+2,Default (Planner's Choice),No Index,0.20017695426940918
+2,Default (Planner's Choice),createNonClustered,0.34304189682006836
+2,Default (Planner's Choice),"createClustered, createClustered",0.24953651428222656
+1,Nested Loop,createNonClustered,13.787327766418457
+1,Nested Loop,createNonClustered,5.884579420089722
+1,Nested Loop,"createNonClustered, createNonClustered",6.266064643859863
+2,Nested Loop,createNonClustered,0.39128851890563965
+2,Nested Loop,createNonClustered,0.2809879779815674
+2,Nested Loop,"createNonClustered, createNonClustered",0.21568775177001953
+1,Merge Join,No Index,6.99332857131958
+1,Merge Join,"createNonClustered, createNonClustered",2.847195625305176
+1,Merge Join,"createClustered, createClustered",2.7336318492889404
+2,Merge Join,No Index,0.7989871501922607
+2,Merge Join,"createNonClustered, createNonClustered",0.8546285629272461
+2,Merge Join,"createClustered, createClustered",1.0438878536224365
+1,Hash Join,No Index,3.4125843048095703
+2,Hash Join,No Index,0.3292980194091797
