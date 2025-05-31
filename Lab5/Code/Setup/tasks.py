@@ -79,6 +79,13 @@ def run_query_with_timing(cursor, query):
 
 def run_experiment(cursor, index_creators, query,strategy_name, query_id):
     dropOldIndex(cursor)
+    cursor.execute("""
+    SELECT indexname
+    FROM pg_indexes
+    WHERE tablename IN ('publ', 'auth');    
+    """)
+    print("Indexes after drop:", [row[0] for row in cursor.fetchall()])
+    
     if index_creators is None or index_creators == [None]:
         name = "No Index"
         index_creators = []

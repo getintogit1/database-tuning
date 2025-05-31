@@ -58,12 +58,13 @@ def dropOldIndex(cursor):
     cursor.execute("DROP INDEX IF EXISTS idx_auth_pubid_nonclustered;")
     cursor.execute("DROP INDEX IF EXISTS idx_publ_pubid_clustered;")
     cursor.execute("DROP INDEX IF EXISTS idx_auth_pubid_clustered;")
+    cursor.execute("DROP INDEX IF EXISTS idx_pubid_nonclustered")
 
 
 def createNonClusteredBTree(table, column):
     def createNonClustered(cursor):
         print(f"Creating non-clustered index on {table}.{column}")
-        cursor.execute(f"CREATE INDEX idx_{table}_{column}_nonclustered ON {table} ({column});")
+        cursor.execute(f"CREATE INDEX idx_{table.lower()}_{column.lower()}_nonclustered ON {table} ({column});")
     return createNonClustered
 
 
