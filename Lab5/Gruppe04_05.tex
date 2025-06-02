@@ -40,10 +40,10 @@ We use a Python-script to run all of the tests in one go, measure the execution 
   \begin{tabular}{l|l|l}
     Indexes & Join Strategy Q1 & Join Strategy Q2 \tabularnewline
     \hline
-    no index & Hash Join & Parallel Hash Join \tabularnewline
-    unique non-clustering on \texttt{Publ.pubID} & Hash Join  & Nested Loop Join
+    no index & Hash Join (2.7250s) & Parallel Hash Join (0.3035s) \tabularnewline
+    unique non-clustering on \texttt{Publ.pubID} & Hash Join (2.6926s) & Indexed Nested Loop Join (0.1715s)
       \tabularnewline
-    clustering on \texttt{Publ.pubID} and \texttt{Auth.pubID} & Merge Join & Nested Loop Join
+    clustering on \texttt{Publ.pubID} and \texttt{Auth.pubID} & Merge Join (2.4625s) & Indexed Nested Loop Join (0.2392s)
       \tabularnewline
   \end{tabular}
 \end{table}
@@ -52,7 +52,41 @@ We use a Python-script to run all of the tests in one go, measure the execution 
 
 Discuss your observations. Is the choice of the strategy expected? How does the system come to this choice?
 
-\youranswerhere{}
+\textbf{Query 1}
+
+With no indexes at all, PostgreSQL chooses to perform a hash join on
+Publ.pubID (the side with the smaller number of tuples); this makes
+sense, since hash joins are more performant than nested loop joins
+without indexes when both sides have a large amount of tuples.
+
+This does not change with a non-clustering index on Publ.  This is
+probably because the number of hash lookups is significantly smaller in
+this case than the number of index lookups that would be required when
+using the non-clustering index.
+
+Finally, when both sides have a clustering index each, the database
+decides to run a merge join using the two indexes.  Evidently though,
+this is not much more performant than the two alternatives; indeed, when
+performing the experiment on an another system, PostgreSQL ended up
+using a hash join instead.
+
+\textbf{Query 2}
+
+For the second query without an index, the optimizer starts a parallel
+sequential scan on Auth, filling up the hash table with entries where
+the name matches.  This is only possible here because the required hash
+table is limited in size by the name filter; in a parallel hash, the
+processes cooperate to create a huge hash table, which is not
+realistically possible with millions of entries.
+
+With a non-clustering index on Publ, we can also see a change: here,
+the optimizer can finally use the index, since the tuples in Auth are
+greatly filtered down according to the `name` column.
+
+The strategy does not change with the two clustered indexes.  A merge
+join would be possible here, but it is not used, presumably because it
+would require a separate filter and sort step on the Auth index before
+the scan on Publ could be started.
 
 \subsection*{Indexed Nested Loop Join}
 
@@ -63,9 +97,9 @@ Discuss your observations. Is the choice of the strategy expected? How does the 
   \begin{tabular}{l|r|r}
     Indexes & Response time Q1 [s] & Response time Q2 [s] \tabularnewline
     \hline
-    index on \texttt{Publ.pubID} & 12.7547 & 0.1752 \tabularnewline
-    index on \texttt{Auth.pubID} & 5.2941 & 4.8046 \tabularnewline
-    index on \texttt{Publ.pubID} and \texttt{Auth.pubID} & 5.0746 & 0.1926
+    index on \texttt{Publ.pubID} & 13.6798 & 0.1692 \tabularnewline
+    index on \texttt{Auth.pubID} & 5.7032 & 4.8619 \tabularnewline
+    index on \texttt{Publ.pubID} and \texttt{Auth.pubID} & 5.3769 & 0.1867
         \tabularnewline
   \end{tabular}
 \end{table}
@@ -153,7 +187,45 @@ Gather  (cost=1000.43..44016.78 rows=24 width=67) (actual time=45.347..188.893 r
 
 Discuss your observations. Are the response times expected? Why (not)?
 
-\youranswerhere{}
+\textbf{Query 1}
+
+When using a non-clustering index on Publ.pubID, the database performs a
+sequential scan (which results in the longest runtime of all
+experiments) and accesses the tuples from the Publ table based on the
+index.  In contrast, with an index on Auth.pubID, Publ is read
+sequentially, while the index is used for Auth.
+
+As Auth with 3 million tuples is significantly larger than Publ with 1.3
+million, it is generally more efficient to scan Publ completely.  This
+assumption is confirmed by the shorter runtime in the corresponding
+case.
+
+If both tables are indexed, the system uses the index on Auth.pubID,
+while the index on Publ is ignored.  The runtime is not noticeably
+different from the variant in which only Auth.pubID is indexed - this
+explains the optimizer's decision.
+
+\textbf{Query 2}
+
+If a non-clustering index is used on Publ.pubID, PostgreSQL runs through
+the Auth table sequentially and filters for rows with \textit{name =
+'Divesh Srivastava'}.  The corresponding tuple from Publ can then be
+found very efficiently using the index via pubID - as this column is
+unique.  This combination leads to a significantly better runtime
+compared to query 1.
+
+On the other hand, if there is only one index on Auth.pubID, PostgreSQL
+decides to use the smaller Publ table as the outer table to perform an
+indexed nested loop join, whereby the matching tuple from Auth is
+searched for each row in Publ by index.  The name filter on Auth is
+applied after the index access. Here too, the use of the index ensures a
+better runtime, although not quite as efficiently as in the previous
+case.
+
+If both columns (Publ.pubID and Auth.pubID) are indexed, PostgreSQL only
+uses the index on Publ.pubID in our case.  The additional index on Auth
+remains unused.  The execution time is therefore not noticeably
+different from the case in which only Publ.pubID is indexed.
 
 \subsection*{Sort-Merge Join}
 
@@ -164,9 +236,9 @@ Discuss your observations. Are the response times expected? Why (not)?
   \begin{tabular}{l|r|r}
     Indexes & Response time Q1 [s] & Response time Q2 [s] \tabularnewline
     \hline
-    no index & 7.0420 & 1.6849 \tabularnewline
-    two non-clustering indexes & 3.0426 & 1.1417 \tabularnewline
-    two clustering indexes & 3.4439 & 1.3803 \tabularnewline
+    no index & 8.9741 & 1.4914 \tabularnewline
+    two non-clustering indexes & 2.4118 & 0.7319 \tabularnewline
+    two clustering indexes & 2.4007 & 0.7481 \tabularnewline
   \end{tabular}
 \end{table}
 
@@ -272,7 +344,35 @@ Merge Join  (cost=43933.21..121360.18 rows=24 width=67) (actual time=320.572..13
 
 Discuss your observations. Are the response times expected? Why (not)?
 
-\youranswerhere{}
+\textbf{Query 1}
+
+When using a merge join, the presence of non-clustered indexes on
+Publ.pubID and Auth.pubID has no influence on the runtime.  In both
+cases, the tables must first be explicitly sorted according to the
+joined column before the merge join can be executed.  Non-clustered
+indexes offer no advantage - neither during sorting nor during the
+subsequent join.
+
+The situation is different if there are clustered indexes on the joined
+column in both tables.  In this case, the data is already sorted so that
+the sorting effort is completely eliminated.  This results in a
+significantly lower runtime, as the merge join can be executed directly
+on the pre-sorted data.
+
+\textbf{Query 2}
+
+The second query exhibits similar behavior: if there is no clustering
+index on the join columns Publ.pubID and \texttt{Auth.pubID}, both
+tables must first be explicitly sorted before the merge join can be
+performed.  The only difference to the first query is that Auth is
+filtered to \textit{name = 'Divesh Srivastava'} before sorting.  This
+reduces the amount of tuples joined, leading to a shorter runtime.
+
+If both columns have a clustering index, Auth is also filtered by name
+first.  As Publ is already sorted based on the clustering index, only
+Auth needs to be sorted.  In this case, the runtime becomes
+significantly shorter, as the join can be performed with barely any
+sorting effort.
 
 \subsection*{Hash Join}
 
@@ -283,7 +383,7 @@ Discuss your observations. Are the response times expected? Why (not)?
   \begin{tabular}{l|r|r}
     Indexes & Response time Q1 [ms] & Response time [ms] Q2 \tabularnewline
     \hline
-    no index & 4.5673 & 0.3448 \tabularnewline
+    no index & 2.6734 & 0.3059 \tabularnewline
   \end{tabular}
 \end{table}
 
@@ -317,7 +417,45 @@ Gather  (cost=43929.96..80258.37 rows=24 width=67) (actual time=226.941..344.091
 
 What do you think about the response time of the hash index vs.\ the response times of sort-merge and index nested loop join for each of the queries? Explain.
 
-\youranswerhere{}
+Overall, we can observe that without indexes, a hash join typically
+achieves the best runtime.  With indexes, the optimal join strategy
+strongly depends on whether the tables are clustered after the column to
+be joined, and whether the number of tuples to be processed can be
+restricted before the join.
+
+\textbf{Query 1}
+
+No selection is done in the first query - all tuples from Auth and Publ
+must be joined.  In this case, the sort-merge join ends up being the
+most efficient strategy, provided that both tables are clustered on the
+join columns.  The existing sorting eliminates additional effort.
+
+However, without clustering, PostgreSQL must sort both tables before the
+merge, which leads to higher costs.  In this case, the hash join is
+usually the better choice, as it does not require sorting and can handle
+large amounts of data well.
+
+Nested loop here is inefficient, mainly because Publ is being used as
+the outer table.  Even with an index on \texttt{Auth}, it remains
+significantly slower than merge and hash join.
+
+Conclusion: a merge join with clustered indexes is the most efficient,
+but hash join is the best option without indexes.
+
+\textbf{Query 2}
+
+The second query contains a selection condition on \texttt{Auth.name},
+which filters down the amount of tuples by several orders of magnitude.
+An indexed nested loop join in particular can benefit from this.  This
+is recognized by the PostgreSQL planner as well.
+
+If no suitable index is available, the hash join is once again a
+reasonably efficient option.  The merge join with clustered indexes on
+the other hand is still clearly slower than the aforementioned two
+arrangements.
+
+Conclusion: for selective conditions on a table, the nested loop with
+index on the counter-table (here Publ) is clearly superior.
 
 \subsection*{Time Spent on this Assignment}
 
@@ -329,10 +467,8 @@ Time in hours per person: \textbf{4}
   \centering
   \begin{tabular}{c}
     \hline
-    \textbf{Important:} Reference your information sources! \tabularnewline
-    Remove this section if you use footnotes to reference your information
-    sources. \tabularnewline
-    \hline
+    \tabularnewline
+    https://www.enterprisedb.com/postgres-tutorials/parallel-hash-joins-postgresql-explained?lang=en
   \end{tabular}
 \end{table}
 
