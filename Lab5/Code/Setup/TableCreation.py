@@ -16,7 +16,7 @@ def createTables(connection):
         type VARCHAR(13),
         title VARCHAR(700),
         booktitle VARCHAR(132),
-        year VARCHAR(4),
+        year SMALLINT(4),
         publisher VARCHAR(196)
         );
     """)

@@ -84,7 +84,7 @@ def run_experiment(cursor, index_creators, query,strategy_name, query_id):
     FROM pg_indexes
     WHERE tablename IN ('publ', 'auth');    
     """)
-    print("Indexes after drop:", [row[0] for row in cursor.fetchall()])
+    #print("Indexes after drop:", [row[0] for row in cursor.fetchall()])
     
     if index_creators is None or index_creators == [None]:
         name = "No Index"

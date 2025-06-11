@@ -1,0 +1,11 @@
+isolation,maxconcurrent,correctness,duration
+read_committed,1,1.0,3.3538
+read_committed,2,0.82,1.2895
+read_committed,3,0.89,1.0736
+read_committed,4,0.89,0.9860
+read_committed,5,0.8,0.9507
+serializable,1,1.0,3.1082
+serializable,2,1.0,2.5077
+serializable,3,1.0,1.7096
+serializable,4,1.0,1.4022
+serializable,5,1.0,1.6366
