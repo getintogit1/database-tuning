@@ -3,6 +3,8 @@ import sys
 import psycopg as psy
 import sqlite3
 import json
+import argparse
+import os
 
 def credentials():
     try:
@@ -47,10 +49,20 @@ def dbSetup():
         port= 5432""")
     return connection
 
-def explain_query(cursor, query):
-    cursor.execute("EXPLAIN ANALYZE " + query)
-    plan = cursor.fetchall()
-    print("\n".join(row[0] for row in plan))
+
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', '--numthreads', type=int, default=1)
+    parser.add_argument('-c', '--maxconcurrent', type=int, default=1)
+    parser.add_argument('-i', '--isolation', choices=['read_committed', 'serializable'], default='read_committed')
+    parser.add_argument('-s', '--solution', choices=['a', 'b'], default= 'a')
+    args = parser.parse_args()
+    return args
 
 
-
+def write_csv(args, maxconcurrent, correctness, duration):
+    write_header = not os.path.exists("results.csv")
+    with open("results.csv", "a") as f:
+        if write_header:
+            f.write("isolation,maxconcurrent,correctness,duration\n")
+        f.write(f"{args.isolation},{maxconcurrent},{correctness},{duration:.4f}\n")
