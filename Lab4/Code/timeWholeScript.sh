@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#real: actual total time elapsed (this is importand for this assignment)
+#real: actual total time elapsed (this is important for this assignment)
 #user: time the CPU spent in user-mode (code)
 #sys: time spent in kernel/system calls
 
