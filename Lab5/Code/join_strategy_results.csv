@@ -1,21 +1,21 @@
 query_id,strategy,index,time
-1,Default (Planner's Choice),No Index,4.857799530029297
-1,Default (Planner's Choice),createNonClustered,4.200462102890015
-1,Default (Planner's Choice),"createClustered, createClustered",3.8584611415863037
-2,Default (Planner's Choice),No Index,0.40431928634643555
-2,Default (Planner's Choice),createNonClustered,0.19899678230285645
-2,Default (Planner's Choice),"createClustered, createClustered",0.27205777168273926
-1,Nested Loop,createNonClustered,12.754702091217041
-1,Nested Loop,createNonClustered,5.294063091278076
-1,Nested Loop,"createNonClustered, createNonClustered",5.074558734893799
-2,Nested Loop,createNonClustered,0.17519783973693848
-2,Nested Loop,createNonClustered,4.8045759201049805
-2,Nested Loop,"createNonClustered, createNonClustered",0.19255352020263672
-1,Merge Join,No Index,7.041979789733887
-1,Merge Join,"createNonClustered, createNonClustered",3.0425643920898438
-1,Merge Join,"createClustered, createClustered",3.443859100341797
-2,Merge Join,No Index,1.68491530418396
-2,Merge Join,"createNonClustered, createNonClustered",1.1417129039764404
-2,Merge Join,"createClustered, createClustered",1.3803293704986572
-1,Hash Join,No Index,4.5672502517700195
-2,Hash Join,No Index,0.34475016593933105
+1,Default (Planner's Choice),No Index,2.867154598236084
+1,Default (Planner's Choice),createNonClustered,2.965465784072876
+1,Default (Planner's Choice),"createClustered, createClustered",2.589601993560791
+2,Default (Planner's Choice),No Index,0.3229236602783203
+2,Default (Planner's Choice),createNonClustered,0.3392822742462158
+2,Default (Planner's Choice),"createClustered, createClustered",0.22658538818359375
+1,Nested Loop,createNonClustered,13.701579570770264
+1,Nested Loop,createNonClustered,5.924027919769287
+1,Nested Loop,"createNonClustered, createNonClustered",6.1718127727508545
+2,Nested Loop,createNonClustered,0.3495643138885498
+2,Nested Loop,createNonClustered,5.3679358959198
+2,Nested Loop,"createNonClustered, createNonClustered",0.21692585945129395
+1,Merge Join,No Index,9.357270002365112
+1,Merge Join,"createNonClustered, createNonClustered",2.5732033252716064
+1,Merge Join,"createClustered, createClustered",2.612884283065796
+2,Merge Join,No Index,1.5851082801818848
+2,Merge Join,"createNonClustered, createNonClustered",0.8143277168273926
+2,Merge Join,"createClustered, createClustered",0.8322174549102783
+1,Hash Join,No Index,2.8343899250030518
+2,Hash Join,No Index,0.3236825466156006
