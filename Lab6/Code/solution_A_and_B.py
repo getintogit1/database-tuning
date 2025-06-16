@@ -15,7 +15,6 @@ def solutionA(transactionid, isolation_level, DB_PARAMS):
             cur.execute("SELECT balance FROM Accounts WHERE account = %s;", (transactionid,))
             e = cur.fetchone()[0]
             cur.execute("UPDATE Accounts SET balance = %s WHERE account = %s;", (e + 1, transactionid))
-            conn.commit()
             
             cur.execute("SELECT balance FROM Accounts WHERE account = %s;", (0,))
             c = cur.fetchone()[0]
@@ -55,8 +54,8 @@ def solutionB(transactionid, isolation_level, DB_PARAMS):
             cur = conn.cursor()
             cur.execute("UPDATE Accounts SET balance = balance + 1 WHERE account = %s;", (transactionid,))
             cur.execute("UPDATE Accounts SET balance = balance -1 WHERE account = 0;")
-            conn.commit()
             cur.close()
+            conn.commit()
             conn.close()
             break  
 
