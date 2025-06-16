@@ -1,4 +1,4 @@
-# 📘 Database Tuning – University Labs
+# 📘 Database Tuning 
 
 **Database Tuning** course, based on the book:
 
@@ -23,9 +23,9 @@ The experiments are based on real-world workloads and performance metrics, inspi
 |-----|----------------------------------|-------------|
 | 1   | **Database Creation & Insertion** | Schema design and efficient data insertion strategies |
 | 2   | **Query Tuning**                  | Analyzing and optimizing SQL queries using execution plans |
-| 3   | **Index Tuning**                  | Identifying and implementing indexes to improve performance |
-| 4   | **Advanced Indexing**             | Covering indexes, composite indexes, and index-only plans |
+| 3   | **Index Tuning Theory**           | Identifying different indexes to improve performance |
+| 4   | **Index Tuning Practice**         | Clustered / Unclustered BTree, Hash Index |
 | 5   | **Join Tuning**                   | Join algorithms, reordering joins, and cost estimation |
-| 6   | **Concurrency Tuning**            | Transactions, isolation levels, and lock contention analysis |
+| 6   | **Concurrency Tuning**            | Transactions, isolation levels|
 
 ---
