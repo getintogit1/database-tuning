@@ -1,4 +1,4 @@
-# 📘 Database Tuning 
+# Database Tuning 
 
 **Database Tuning** course, based on the book:
 
@@ -9,15 +9,23 @@
 This repository contains solutions, experiments, and documentation for **6 lab exercises** covering essential techniques for optimizing database performance.
 
 ---
+## Mainly Used
 
-## 📚 Course Overview
+<p align="center">
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="50" height="50" alt="PostgreSQL"/>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" width="50" height="50" alt="Python"/>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" width="50" height="50" alt="SQLite"/>
+  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/bash/bash-original.svg" width="50" height="50" alt="Bash"/>
+</p>
+
+---
+## Course Overview
 
 The course focuses on practical techniques to improve database performance through schema design, indexing, query formulation, concurrency handling, and tuning strategies.  
 The experiments are based on real-world workloads and performance metrics, inspired by the concepts in the book.
 
 ---
-
-## 🧪 Lab Structure
+## Lab Structure
 
 | Lab | Topic                            | Description |
 |-----|----------------------------------|-------------|
