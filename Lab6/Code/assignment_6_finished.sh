@@ -2,8 +2,9 @@
 
 set -e
 
-DB_USER="sam"
-DB_NAME="tuninglab6"
+# replace this with actual settings
+DB_USER="dummyUser"
+DB_NAME="dummyDB"
 
 echo "===== Creating database if not exists ====="
 createdb -U $DB_USER $DB_NAME || echo "Database $DB_NAME already exists."
